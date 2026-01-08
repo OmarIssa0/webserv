@@ -17,7 +17,6 @@ class Client {
    public:
     Client();
     explicit Client(int fd);
-    Client(int fd, const sockaddr_in& addr);
     ~Client();
 
     ssize_t     receiveData();

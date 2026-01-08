@@ -1,29 +1,65 @@
 #include <poll.h>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <vector>
+#include <signal.h>
+#include "http/HttpRequest.hpp"
+#include "http/HttpResponse.hpp"
 #include "server/Client.hpp"
 #include "server/PollManager.hpp"
 #include "server/Server.hpp"
 #include "utils/Logger.hpp"
+#include "utils/Utils.hpp"  // Include global utility
+
+bool g_running = true;
+
+void signalHandler(int signum) {
+    (void)signum; 
+    g_running = false;
+}
+
+std::string check_URI(const std::string& uri) {
+    HttpResponse response;
+    
+    if (uri == "/") {
+        response.setStatus(200, "OK");
+        response.addHeader("Content-Type", "text/plain");
+        response.setBody("Hello, World!");
+    } else if (uri == "/about") {
+        response.setStatus(200, "OK");
+        response.addHeader("Content-Type", "text/plain");
+        response.setBody("This is the about page.");
+    } else {
+        response.setStatus(404, "Not Found");
+        response.addHeader("Content-Type", "text/plain");
+        response.setBody("Not Found");
+    }
+    
+    return response.toString();
+}
 
 int main(int argc, char** argv) {
-    uint16_t port = (argc > 1) ? std::atoi(argv[1]) : 9090;
-
-    Server server(port);
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+    
+    uint16_t    port = (argc > 1) ? std::atoi(argv[1]) : 9090;
+    Server      server(port);
     if (!server.init()) {
         Logger::error("Failed to initialize server");
         return 1;
     }
 
-    Logger::info("Server ready");
+    // Using toString with Logger - now you can log numbers easily!
+    Logger::info("Server ready on port " + toString(port));
 
     std::vector<Client*> clients;
     PollManager          pollManager;
     pollManager.addFd(server.getFd(), POLLIN);
 
-    while (true) {
-        if (pollManager.pollConnections(-1) < 0)
+    while (g_running) {
+        if (pollManager.pollConnections(100) < 0) 
             break;
 
         // New connection
@@ -36,40 +72,51 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Handle client data
-        for (size_t i = 1; i < pollManager.size(); i++) {
-            if (pollManager.hasEvent(i, POLLIN)) {
-                Client* client = clients[i - 1];
+        for (size_t i = pollManager.size(); i > 1; i--) {
+            size_t idx = i - 1;
 
-                if (client->receiveData() <= 0) {
+            if (pollManager.hasEvent(idx, POLLIN)) {
+                Client* client    = clients[idx - 1];
+                ssize_t bytesRead = client->receiveData();
+
+                if (bytesRead <= 0) {
                     Logger::info("Client disconnected");
                     client->closeConnection();
                     delete client;
-                    clients.erase(clients.begin() + (i - 1));
-                    pollManager.removeFd(i);
-                    i--;
+                    clients.erase(clients.begin() + (idx - 1));
+                    pollManager.removeFd(idx);
                 } else {
-                    std::cout << "\n[Request]\n" << client->getBuffer() << std::endl;
+                    HttpRequest request;
+                    request.parseRequest(client->getBuffer());
+                    request.print();
 
-                    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nhello friend\n";
-                    client->sendData(response);
-
-                    // Close connection after sending response
-                    client->closeConnection();
-                    delete client;
-                    clients.erase(clients.begin() + (i - 1));
-                    pollManager.removeFd(i);
-                    i--;
+                    client->sendData(check_URI(request.getUri()));
+                    client->clearBuffer();
                 }
+            } else if (pollManager.hasEvent(idx, POLLERR | POLLHUP)) {
+                Client* client = clients[idx - 1];
+                Logger::info("Client error/disconnect");
+                client->closeConnection();
+                delete client;
+                clients.erase(clients.begin() + (idx - 1));
+                pollManager.removeFd(idx);
+            } else if (pollManager.hasEvent(idx, POLLNVAL)) {
+                Client* client = clients[idx - 1];
+                Logger::info("Client invalid request");
+                client->closeConnection();
+                delete client;
+                clients.erase(clients.begin() + (idx - 1));
+                pollManager.removeFd(idx);
             }
         }
     }
-
+    Logger::info("Shutting down server...");
     for (size_t i = 0; i < clients.size(); i++) {
         clients[i]->closeConnection();
         delete clients[i];
     }
     server.stop();
+    Logger::info("Server stopped");
 
     return 0;
 }

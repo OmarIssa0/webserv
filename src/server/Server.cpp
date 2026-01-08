@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include <errno.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
@@ -7,7 +8,6 @@
 Server::Server() : server_fd(INVALID_FD), port(8080), running(false) {}
 
 Server::Server(uint16_t port) : server_fd(INVALID_FD), port(port), running(false) {}
-Server::Server(const std::string& host, uint16_t port) : server_fd(INVALID_FD), port(port), host(host), running(false) {}
 Server::~Server() {
     stop();
 }
@@ -69,13 +69,13 @@ void Server::stop() {
     running = false;
 }
 
-bool Server::createNonBlockingSocket() {
-    int flags = fcntl(server_fd, F_GETFL, 0);
+bool Server::createNonBlockingSocket(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1) {
         Logger::error("Failed to get socket flags");
         return false;
     }
-    if (fcntl(server_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
         Logger::error("Failed to set non-blocking mode");
         return false;
     }
@@ -93,11 +93,14 @@ int Server::acceptConnection(sockaddr_in* client_addr) {
     sockaddr_in* addr_ptr  = client_addr ? client_addr : &addr;
     int          client_fd = accept(server_fd, (sockaddr*)addr_ptr, &addr_len);
     if (client_fd < 0) {
-        Logger::error("Failed to accept connection");
+        // Don't log EAGAIN/EWOULDBLOCK - it's normal for non-blocking sockets
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            Logger::error("Failed to accept connection");
+        }
         return INVALID_FD;
     }
     // Set client socket to non-blocking mode
-    if (!createNonBlockingSocket()) {
+    if (!createNonBlockingSocket(client_fd)) {
         close(client_fd);
         return INVALID_FD;
     }
@@ -106,15 +109,4 @@ int Server::acceptConnection(sockaddr_in* client_addr) {
 
 int Server::getFd() const {
     return server_fd;
-}
-
-bool Server::isRunning() const {
-    return running;
-}
-
-uint16_t Server::getPort() const {
-    return port;
-}
-std::string Server::getHost() const {
-    return host;
 }

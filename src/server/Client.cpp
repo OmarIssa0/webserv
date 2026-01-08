@@ -1,4 +1,5 @@
 #include "Client.hpp"
+#include <errno.h>
 
 Client::Client() : client_fd(-1) {}
 
@@ -9,10 +10,15 @@ Client::~Client() {
 }
 
 ssize_t Client::receiveData() {
-    char    tmp[4096];
-    ssize_t n = read(client_fd, tmp, sizeof(tmp));
-    if (n > 0) {
+    char    tmp[1024];
+    ssize_t total = 0;
+    ssize_t n;
+    while ((n = read(client_fd, tmp, sizeof(tmp))) > 0) {
         buffer.append(tmp, n);
+        total += n;
+    }
+    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        return total > 0 ? total : 1;
     }
     return n;
 }

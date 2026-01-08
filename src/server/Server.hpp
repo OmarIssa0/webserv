@@ -7,11 +7,9 @@
 #include <iostream>
 class Server {
    private:
-    static const int INVALID_FD   = -1;
-    static const int DEFAULT_PORT = 8080;
+    static const int INVALID_FD = -1;
     int              server_fd;
     uint16_t         port;
-    std::string      host;
     bool             running;
 
     // steps to initialize server
@@ -19,7 +17,7 @@ class Server {
     bool configureSocket();
     bool bindSocket();
     bool startListening();
-    bool createNonBlockingSocket();
+    bool createNonBlockingSocket(int fd);
 
     // force non-copyable for copy constructor and assignment operator
     Server(const Server&);
@@ -28,18 +26,14 @@ class Server {
    public:
     Server();
     explicit Server(uint16_t port);
-    Server(const std::string& host, uint16_t port);
     ~Server();
 
     bool init();
     void stop();
     int  acceptConnection(sockaddr_in* client_addr = 0);
 
-    //getters
-    std::string getHost() const;
-    uint16_t    getPort() const;
-    bool        isRunning() const;
-    int         getFd() const;
+    // getters
+    int getFd() const;
 };
 
 #endif
