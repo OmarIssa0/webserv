@@ -93,13 +93,11 @@ int Server::acceptConnection(sockaddr_in* client_addr) {
     sockaddr_in* addr_ptr  = client_addr ? client_addr : &addr;
     int          client_fd = accept(server_fd, (sockaddr*)addr_ptr, &addr_len);
     if (client_fd < 0) {
-        // Don't log EAGAIN/EWOULDBLOCK - it's normal for non-blocking sockets
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             Logger::error("Failed to accept connection");
         }
         return INVALID_FD;
     }
-    // Set client socket to non-blocking mode
     if (!createNonBlockingSocket(client_fd)) {
         close(client_fd);
         return INVALID_FD;
