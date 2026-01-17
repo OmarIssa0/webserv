@@ -100,3 +100,4 @@ std::vector<ServerConfig> ConfigParser::getServers() const {
 std::string ConfigParser::getError() const {
     return error;
 }
+
