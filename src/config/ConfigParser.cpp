@@ -287,8 +287,10 @@ bool ConfigParser::validate() {
 
         if (!httpClientMaxBody.empty() && s.getClientMaxBody().empty())
             s.setClientMaxBody(httpClientMaxBody);
-        if (httpClientMaxBody.empty() && s.getClientMaxBody().empty())
+        if (httpClientMaxBody.empty() && s.getClientMaxBody().empty()){
+            httpClientMaxBody = "1M";
             s.setClientMaxBody("1M");
+        }
         for (size_t j = 0; j < s.getLocations().size(); j++) {
             LocationConfig& l = s.getLocations()[j];
             if (l.getRoot().empty()) {
