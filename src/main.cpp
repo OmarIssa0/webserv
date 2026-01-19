@@ -15,7 +15,9 @@ void printLocation(const LocationConfig& loc, const std::string& resolvedBody) {
     std::cout << "  Location: " << loc.getPath() << "\n";
     std::cout << "    root       : " << loc.getRoot() << "\n";
     std::cout << "    autoindex  : " << (loc.getAutoIndex() ? "on" : "off") << "\n";
-
+    for(size_t i = 0; i < loc.getAllowedMethods().size(); i++) {
+        std::cout << "    method     : " << loc.getAllowedMethods()[i] << "\n";
+    }
     if (loc.getClientMaxBody().empty() == false)
         std::cout << "    client_max : " << loc.getClientMaxBody() << " (location)\n";
     else
@@ -62,9 +64,6 @@ int main(int ac, char** av) {
     }
 
     ConfigParser parser(av[1]);
-
-    std::cout << "\nLoading config: " << av[1] << "\n";
-
     if (!parser.parse()) {
         std::cerr << "ERROR: " << parser.getError() << "\n";
         return 1;

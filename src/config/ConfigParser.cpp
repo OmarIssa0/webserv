@@ -32,6 +32,7 @@ ConfigParser::ConfigParser(const std::string& f) : file(f), scope(NONE), curr_in
             lines.push_back(t);
         current.clear();
     }
+    ff.close();
 }
 
 bool ConfigParser::getNextLine(std::string& out) {
@@ -169,13 +170,15 @@ bool ConfigParser::parseServer() {
 }
 bool ConfigParser::parseServerDirective(const std::string& l, ServerConfig& srv, bool& hasListen) {
     std::stringstream ss(l);
-    std::string       key, val;
+    std::string       key, val, extra;
     ss >> key >> val;
     val = clean(val);
 
     if (key == "listen") {
         if (hasListen)
             return setError("duplicate listen");
+        if (ss >> extra)
+            return setError("listen takes exactly one value");
         size_t c = val.find(':');
         if (c == std::string::npos)
             return setError("invalid listen format");
@@ -187,10 +190,14 @@ bool ConfigParser::parseServerDirective(const std::string& l, ServerConfig& srv,
     } else if (key == "root") {
         if (!srv.getRoot().empty())
             return setError("duplicate root");
+        if (ss >> extra)
+            return setError("root takes exactly one value");
         srv.setRoot(val);
     } else if (key == "server_name") {
         if (!srv.getServerName().empty())
             return setError("duplicate server_name");
+        if (ss >> extra)
+            return setError("server_name takes exactly one value");
         srv.setServerName(val);
     } else if (key == "index") {
         if (!srv.getIndex().empty())
@@ -199,6 +206,8 @@ bool ConfigParser::parseServerDirective(const std::string& l, ServerConfig& srv,
     } else if (key == "client_max_body_size") {
         if (!srv.getClientMaxBody().empty())
             return setError("duplicate client_max_body_size");
+        if (ss >> extra)
+            return setError("client_max_body_size takes exactly one value");
         srv.setClientMaxBody(val);
     } else
         return setError("Unknown server directive: " + key);
@@ -242,13 +251,14 @@ bool ConfigParser::parseLocation(ServerConfig& srv, const std::string& header) {
 }
 bool ConfigParser::parseLocationDirective(const std::string& l, LocationConfig& loc) {
     std::stringstream ss(l);
-    std::string       key, val;
+    std::string       key, val, extra;
     ss >> key >> val;
     val = clean(val);
-
     if (key == "root") {
         if (!loc.getRoot().empty())
             return setError("duplicate root");
+        if (ss >> extra)
+            return setError("root takes exactly one value");
         loc.setRoot(val);
     } else if (key == "autoindex") {
         if (loc.getAutoIndex() != false)
@@ -265,8 +275,16 @@ bool ConfigParser::parseLocationDirective(const std::string& l, LocationConfig& 
             return setError("duplicate client_max_body_size");
         loc.setClientMaxBody(val);
     } else if (key == "methods") {
+        val = toUpperWords(val);
+        if (!checkMethods(val))
+            return setError("invalid method: " + val);
+        loc.addAllowedMethod(val);
         std::string m;
         while (ss >> m) {
+            m = clean(m);
+            m = toUpperWords(m);
+            if (!checkMethods(m))
+                return setError("invalid method: " + m);
             std::vector<std::string> methods = loc.getAllowedMethods();
             for (size_t i = 0; i < methods.size(); i++) {
                 if (methods[i] == m)
@@ -287,7 +305,7 @@ bool ConfigParser::validate() {
 
         if (!httpClientMaxBody.empty() && s.getClientMaxBody().empty())
             s.setClientMaxBody(httpClientMaxBody);
-        if (httpClientMaxBody.empty() && s.getClientMaxBody().empty()){
+        if (httpClientMaxBody.empty() && s.getClientMaxBody().empty()) {
             httpClientMaxBody = "1M";
             s.setClientMaxBody("1M");
         }
@@ -323,4 +341,12 @@ std::string ConfigParser::getError() const {
 
 std::string ConfigParser::getHttpClientMaxBody() const {
     return httpClientMaxBody;
+}
+bool ConfigParser::checkMethods(const std::string& m) {
+    const std::string methods[] = {"GET", "POST", "DELETE", "PUT", "PATCH", "HEAD", "OPTIONS"};
+    for (size_t i = 0; i < sizeof(methods) / sizeof(methods[0]); i++) {
+        if (methods[i] == m)
+            return true;
+    }
+    return false;
 }

@@ -1440,7 +1440,7 @@ run_tests() {
     test_success "Lowercase methods (auto-uppercase)" "$TEST_DIR/94_lowercase_method.conf"
     
     # Multiple values for root - should now FAIL
-    test_failure "Multiple values for root" "$TEST_DIR/84_multi_value_root.conf" "root directive takes only one value"
+    test_failure "Multiple values for root" "$TEST_DIR/84_multi_value_root.conf" "ERROR: root takes exactly one value"
 }
 
 # ============================================================

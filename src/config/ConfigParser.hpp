@@ -5,6 +5,7 @@
 #include <vector>
 #include "LocationConfig.hpp"
 #include "ServerConfig.hpp"
+#include "../utils/Utils.hpp"
 
 class ConfigParser {
    public:
@@ -17,13 +18,12 @@ class ConfigParser {
 
    private:
     enum Scope { NONE, HTTP, SERVER, LOCATION };
-
     std::string               file;
     std::string               content_file;
     std::vector<ServerConfig> servers;
     std::string               error;
     Scope                     scope;
-    size_t                       curr_index;
+    size_t                    curr_index;
     std::string               httpClientMaxBody;
     std::vector<std::string>  lines;
 
@@ -39,5 +39,6 @@ class ConfigParser {
 
     std::string trim(const std::string& s);
     std::string clean(const std::string& v);
+    bool        checkMethods(const std::string& m);
 };
 #endif
