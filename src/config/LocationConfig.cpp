@@ -3,19 +3,19 @@ LocationConfig::LocationConfig(const std::string& p)
     : path(p),
       root(""),
       autoIndex(false),
-      index(""),
+      indexes(),
       uploadEnabled(false),
       uploadPath(""),
       cgiEnabled(false),
       cgiPath(""),
       cgiExtension(""),
       redirect(""),
-      allowedMethods(std::vector<std::string>(1, "GET")) {}
+      allowedMethods() {}
 LocationConfig::LocationConfig(const std::string& p, const std::string& r)
     : path(p),
       root(r),
       autoIndex(false),
-      index(""),
+      indexes(),
       uploadEnabled(false),
       uploadPath(""),
       cgiEnabled(false),
@@ -34,8 +34,8 @@ void LocationConfig::setRoot(const std::string& r) {
 void LocationConfig::setAutoIndex(bool v) {
     autoIndex = v;
 }
-void LocationConfig::setIndex(const std::string& i) {
-    index = i;
+void LocationConfig::setIndexes(const std::vector<std::string>& i) {
+    indexes = i;
 }
 void LocationConfig::setUploadEnabled(bool v) {
     uploadEnabled = v;
@@ -98,6 +98,6 @@ std::vector<std::string> LocationConfig::getAllowedMethods() const {
 std::string LocationConfig::getClientMaxBody() const {
     return clientMaxBody;
 }
-std::string LocationConfig::getIndex() const {
-    return index;
+std::vector<std::string> LocationConfig::getIndexes() const {
+    return indexes;
 }

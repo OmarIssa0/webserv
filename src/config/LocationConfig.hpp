@@ -9,7 +9,7 @@ class LocationConfig {
     ~LocationConfig();
     void setRoot(const std::string& r);
     void setAutoIndex(bool v);
-    void setIndex(const std::string& i);
+    void setIndexes(const std::vector<std::string>& i);
     void setUploadEnabled(bool v);
     void setUploadPath(const std::string& p);
     void setCgiEnabled(bool v);
@@ -22,7 +22,7 @@ class LocationConfig {
     std::string              getPath() const;
     std::string              getRoot() const;
     bool                     getAutoIndex() const;
-    std::string              getIndex() const;
+    std::vector<std::string> getIndexes() const;
     bool                     getUploadEnabled() const;
     std::string              getUploadPath() const;
     bool                     getCgiEnabled() const;
@@ -39,7 +39,7 @@ class LocationConfig {
     // optional location parameters
     std::string              root;           // default root of server if not set (be required)
     bool                     autoIndex;      // default: false
-    std::string              index;          // default: root if not set be default "index.html"
+    std::vector<std::string> indexes;        // default: root if not set be default "index.html"
     bool                     uploadEnabled;  // default: false
     std::string              uploadPath;     // be required if uploadEnabled is true
     bool                     cgiEnabled;     // default: false

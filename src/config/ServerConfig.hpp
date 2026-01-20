@@ -11,7 +11,7 @@ class ServerConfig {
     // setters
     void setPort(int p);
     void setInterface(const std::string& i);
-    void setIndex(const std::string& i);
+    void setIndexes(const std::vector<std::string>& i);
     void setClientMaxBody(const std::string& b);
     void setServerName(const std::string& name);
     void setRoot(const std::string& root);
@@ -24,7 +24,7 @@ class ServerConfig {
     const std::vector<LocationConfig>& getLocations() const;
     std::string                 getServerName() const;
     std::string                 getRoot() const;
-    std::string                 getIndex() const;
+    std::vector<std::string>    getIndexes() const;
     std::string                 getClientMaxBody() const;
 
    private:
@@ -36,7 +36,7 @@ class ServerConfig {
     // optional server parameters
     std::string serverName;        // default: ""
     std::string root;              // default: use for location if not set(be required)
-    std::string index;             // default: "index.html"
+    std::vector<std::string> indexes;           // default: "index.html"
     std::string clientMaxBodySize; // default: "1M" or inherited from http config
 };
 #endif

@@ -14,7 +14,7 @@ ServerManager::~ServerManager() {
 bool ServerManager::initialize(const std::vector<ServerConfig>& configs) {
     if (configs.empty()) {
         std::cout << "[ERROR]: No server configurations provided" << std::endl;
-            return false;
+        return false;
     }
 
     if (!initializeServers(configs) || servers.empty()) {
@@ -22,7 +22,7 @@ bool ServerManager::initialize(const std::vector<ServerConfig>& configs) {
         return false;
     }
 
-    std::cout << "[INFO]: Successfully initialized " + toString(servers.size()) + " server(s)" << std::endl;
+    std::cout << "[INFO]: Successfully initialized " + typeToString(servers.size()) + " server(s)" << std::endl;
     running = true;
     return true;
 }
@@ -30,18 +30,18 @@ bool ServerManager::initialize(const std::vector<ServerConfig>& configs) {
 bool ServerManager::initializeServers(const std::vector<ServerConfig>& configs) {
     for (size_t i = 0; i < configs.size(); i++) {
         Server* server = new Server(configs[i]);
-        
+
         if (!server->init()) {
-            std::cout << "[ERROR]: Failed to start server on port " + toString(configs[i].getPort()) << std::endl;
+            std::cout << "[ERROR]: Failed to start server on port " + typeToString(configs[i].getPort()) << std::endl;
             delete server;
             continue;
         }
 
         pollManager.addFd(server->getFd(), POLLIN);
         servers.push_back(server);
-        
+
         std::string name = configs[i].getServerName().empty() ? "default" : configs[i].getServerName();
-        std::cout << "[INFO]: Server '" + name + "' listening on port " + toString(configs[i].getPort()) << std::endl;
+        std::cout << "[INFO]: Server '" + name + "' listening on port " + typeToString(configs[i].getPort()) << std::endl;
     }
     return !servers.empty();
 }
@@ -56,16 +56,19 @@ void ServerManager::run() {
 
     while (running) {
         int eventCount = pollManager.pollConnections(100);
-        if (eventCount <= 0) continue;
+        if (eventCount <= 0)
+            continue;
 
         for (size_t i = 0; i < pollManager.size() && eventCount > 0; i++) {
-            if (!pollManager.hasEvent(i, POLLIN)) continue;
+            if (!pollManager.hasEvent(i, POLLIN))
+                continue;
 
             int fd = pollManager.getFd(i);
 
             if (isServerSocket(fd)) {
                 Server* server = findServerByFd(fd);
-                if (server) acceptNewConnection(server);
+                if (server)
+                    acceptNewConnection(server);
             } else if (clients.find(fd) != clients.end()) {
                 handleClientData(fd);
             }
@@ -76,19 +79,20 @@ void ServerManager::run() {
 
 void ServerManager::acceptNewConnection(Server* server) {
     int clientFd = server->acceptConnection();
-    if (clientFd < 0) return;
+    if (clientFd < 0)
+        return;
 
-    Client* client = new Client(clientFd);
-    clients[clientFd] = client;
+    Client* client           = new Client(clientFd);
+    clients[clientFd]        = client;
     clientToServer[clientFd] = server;
     pollManager.addFd(clientFd, POLLIN);
 
-    std::cout << "[INFO]: Connection accepted on port " + toString(server->getPort()) << std::endl;
+    std::cout << "[INFO]: Connection accepted on port " + typeToString(server->getPort()) << std::endl;
 }
 
 void ServerManager::handleClientData(int clientFd) {
     Client* client = clients[clientFd];
-    
+
     if (client->receiveData() <= 0) {
         closeClientConnection(clientFd);
         return;
@@ -98,17 +102,18 @@ void ServerManager::handleClientData(int clientFd) {
     if (server) {
         processRequest(client, server);
     }
-    
+
     closeClientConnection(clientFd);
 }
 
 void ServerManager::processRequest(Client* client, Server* server) {
     std::string buffer = client->getBuffer();
-    if (buffer.find("\r\n\r\n") == std::string::npos) return;
+    if (buffer.find("\r\n\r\n") == std::string::npos)
+        return;
 
     HttpRequest request;
     request.parseRequest(buffer);
-    std::cout << "[INFO]: Request: " + request.getUri() + " on port " + toString(server->getPort()) << std::endl;
+    std::cout << "[INFO]: Request: " + request.getUri() + " on port " + typeToString(server->getPort()) << std::endl;
 
     HttpResponse response;
     ServerConfig config = server->getConfig();
@@ -120,19 +125,18 @@ void ServerManager::processRequest(Client* client, Server* server) {
     html += "h1{color:#2c3e50;border-bottom:3px solid #3498db;padding-bottom:10px;}";
     html += ".info{background:#ecf0f1;padding:15px;border-radius:5px;margin:10px 0;}";
     html += ".label{font-weight:bold;color:#2c3e50;} .value{color:#3498db;}</style></head><body>";
-    html += "<div class='container'><h1>🚀 Welcome to " + 
-            (config.getServerName().empty() ? "Webserv" : config.getServerName()) + "</h1>";
+    html += "<div class='container'><h1>🚀 Welcome to " + (config.getServerName().empty() ? "Webserv" : config.getServerName()) + "</h1>";
     html += "<p>Your HTTP server is running successfully!</p><div class='info'>";
-    html += "<div><span class='label'>Port:</span> <span class='value'>" + toString(config.getPort()) + "</span></div>";
-    
+    html += "<div><span class='label'>Port:</span> <span class='value'>" + typeToString(config.getPort()) + "</span></div>";
+
     if (!config.getServerName().empty()) {
         html += "<div><span class='label'>Server Name:</span> <span class='value'>" + config.getServerName() + "</span></div>";
     }
     if (!config.getRoot().empty()) {
         html += "<div><span class='label'>Root:</span> <span class='value'>" + config.getRoot() + "</span></div>";
     }
-    
-    html += "<div><span class='label'>Locations:</span> <span class='value'>" + toString(config.getLocations().size()) + "</span></div>";
+
+    html += "<div><span class='label'>Locations:</span> <span class='value'>" + typeToString(config.getLocations().size()) + "</span></div>";
     html += "</div></div></body></html>";
 
     response.setStatus(200, "OK");
@@ -177,7 +181,8 @@ bool ServerManager::isServerSocket(int fd) const {
 }
 
 void ServerManager::shutdown() {
-    if (!running) return;
+    if (!running)
+        return;
 
     std::cout << "[INFO]: Shutting down..." << std::endl;
     running = false;

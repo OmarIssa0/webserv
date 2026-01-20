@@ -168,7 +168,7 @@
      │
      ▼
 ┌─────────────────────────┐
-│ HttpResponse::toString()│
+│ HttpResponse::typeToString()│
 │ • Status line           │
 │ • Headers               │
 │ • Body                  │

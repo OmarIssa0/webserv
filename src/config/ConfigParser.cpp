@@ -2,37 +2,8 @@
 #include <cstdlib>
 
 ConfigParser::ConfigParser(const std::string& f) : file(f), scope(NONE), curr_index(0) {
-    std::ifstream ff(file.c_str());
-    if (!ff.is_open()) {
-        std::cerr << "Failed to open file: " << file << std::endl;
-        return;
-    }
-
-    std::string line;
-    std::string current;
-
-    while (std::getline(ff, line)) {
-        for (size_t i = 0; i < line.size(); ++i) {
-            char c = line[i];
-            if (c == '{' || c == ';' || c == '}') {
-                std::string t = trim(current);
-                if (!t.empty())
-                    lines.push_back(t + ((c == '{') ? " {" : (c == ';') ? ";" : ""));
-                else if (c == '{')
-                    lines.push_back("{");
-                if (c == '}')
-                    lines.push_back("}");
-                current.clear();
-            } else {
-                current += c;
-            }
-        }
-        std::string t = trim(current);
-        if (!t.empty())
-            lines.push_back(t);
-        current.clear();
-    }
-    ff.close();
+    if (!convertFileToLines(file, lines))
+        Logger::error("Failed to read configuration file: " + file);
 }
 
 bool ConfigParser::getNextLine(std::string& out) {
@@ -42,60 +13,37 @@ bool ConfigParser::getNextLine(std::string& out) {
     return true;
 }
 
-std::string ConfigParser::clean(const std::string& v) {
-    // is used to remove trailing ';' from directive values
-    if (!v.empty() && v[v.size() - 1] == ';')
-        return v.substr(0, v.size() - 1);
-    return v;
-}
-
-std::string ConfigParser::trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos || s[start] == '#')
-        return "";
-    size_t end = s.find('#', start);
-    if (end != std::string::npos)
-        end--;
-    else
-        end = s.find_last_not_of(" \t\r\n");
-    return s.substr(start, end - start + 1);
-}
-
 bool ConfigParser::parse() {
-    std::ifstream f(file.c_str());
-    if (!f.is_open())
-        return setError("Failed to open config");
-    std::string t;
+    std::string line;
     bool        is_http_defined = false;
-    while (getNextLine(t)) {
-        if (t.empty() || t[0] == '#')
+    while (getNextLine(line)) {
+        if (line.empty())
             continue;
-
-        if (t == "http {") {
+        if (line == "http {") {
             if (is_http_defined)
-                return setError("only one http block allowed");
+                return Logger::error("only one http block allowed");
             is_http_defined = true;
             if (scope != NONE)
-                return setError("http block in invalid position");
+                return Logger::error("http block in invalid position");
             scope = HTTP;
             if (!parseHttp())
                 return false;
             scope = NONE;
             continue;
-        } else if (t == "server {") {
+        } else if (line == "server {") {
             if (scope != NONE)
-                return setError("server block in invalid position");
+                return Logger::error("server block in invalid position");
             scope = SERVER;
             if (!parseServer())
                 return false;
             scope = NONE;
             continue;
         }
-        return setError("Invalid directive: " + t);
+        return Logger::error("Invalid directive: " + line);
     }
 
     if (servers.empty())
-        return setError("No server defined");
+        return Logger::error("No server defined");
 
     return validate();
 }
@@ -103,7 +51,7 @@ bool ConfigParser::parse() {
 bool ConfigParser::parseHttp() {
     std::string line;
     while (getNextLine(line)) {
-        std::string t = trim(line);
+        std::string t = trimSpacesComments(line);
         if (t.empty())
             continue;
         if (t == "}") {
@@ -115,23 +63,23 @@ bool ConfigParser::parseHttp() {
                 return false;
             continue;
         }
-        std::stringstream ss(t);
-        std::string       key, val;
-        ss >> key >> val;
-        val = clean(val);
+        std::string              key;
+        std::vector<std::string> values;
+        if (!parseKeyValue(t, key, values))
+            return Logger::error("invalid http directive: " + t);
 
         if (key == "client_max_body_size") {
             if (!httpClientMaxBody.empty())
-                return setError("duplicate client_max_body_size");
-            httpClientMaxBody = val;
+                return Logger::error("duplicate client_max_body_size");
+            httpClientMaxBody = values[0];
         } else
-            return setError("Unknown http directive: " + key);
+            return Logger::error("Unknown http directive: " + key);
     }
     if (servers.size() == 0) {
-        return setError("No server defined");
+        return Logger::error("No server defined");
     }
     if (scope != NONE)
-        return setError("Unexpected end of file, missing '}'");
+        return Logger::error("Unexpected end of file, missing '}' in http block");
     return true;
 }
 bool ConfigParser::parseServer() {
@@ -141,7 +89,7 @@ bool ConfigParser::parseServer() {
 
     std::string l;
     while (getNextLine(l)) {
-        std::string t = trim(l);
+        std::string t = trimSpacesComments(l);
         if (t.empty())
             continue;
         if (t == "}") {
@@ -160,81 +108,83 @@ bool ConfigParser::parseServer() {
     }
 
     if (!hasListen)
-        return setError("listen is required");
+        return Logger::error("listen is required");
 
     if (srv.getLocations().empty())
-        return setError("at least one location is required");
+        return Logger::error("at least one location is required");
 
     servers.push_back(srv);
+    if (scope != HTTP)
+        return Logger::error("Unexpected end of file, missing '}' in server block");
     return true;
 }
 bool ConfigParser::parseServerDirective(const std::string& l, ServerConfig& srv, bool& hasListen) {
-    std::stringstream ss(l);
-    std::string       key, val, extra;
-    ss >> key >> val;
-    val = clean(val);
+    std::string              key;
+    std::vector<std::string> values;
+    if (!parseKeyValue(l, key, values))
+        return Logger::error("invalid server directive: " + l);
 
     if (key == "listen") {
         if (hasListen)
-            return setError("duplicate listen");
-        if (ss >> extra)
-            return setError("listen takes exactly one value");
-        size_t c = val.find(':');
+            return Logger::error("duplicate listen");
+        if (values.size() != 1)
+            return Logger::error("listen takes exactly one value");
+        size_t c = values[0].find(':');
         if (c == std::string::npos)
-            return setError("invalid listen format");
-        srv.setInterface(val.substr(0, c));
-        srv.setPort(std::atoi(val.substr(c + 1).c_str()));
+            return Logger::error("invalid listen format");
+        srv.setInterface(values[0].substr(0, c));
+        srv.setPort(std::atoi(values[0].substr(c + 1).c_str()));
         if (srv.getPort() <= 0 || srv.getPort() > 65535)
-            return setError("invalid port");
+            return Logger::error("invalid port");
         hasListen = true;
     } else if (key == "root") {
         if (!srv.getRoot().empty())
-            return setError("duplicate root");
-        if (ss >> extra)
-            return setError("root takes exactly one value");
-        srv.setRoot(val);
+            return Logger::error("duplicate root");
+        if (values.size() != 1)
+            return Logger::error("root takes exactly one value");
+        srv.setRoot(values[0]);
     } else if (key == "server_name") {
         if (!srv.getServerName().empty())
-            return setError("duplicate server_name");
-        if (ss >> extra)
-            return setError("server_name takes exactly one value");
-        srv.setServerName(val);
+            return Logger::error("duplicate server_name");
+        if (values.size() != 1)
+            return Logger::error("server_name takes exactly one value");
+        srv.setServerName(values[0]);
     } else if (key == "index") {
-        if (!srv.getIndex().empty())
-            return setError("duplicate index");
-        srv.setIndex(val);
+        if (!srv.getIndexes().empty())
+            return Logger::error("duplicate index");
+        srv.setIndexes(values);
     } else if (key == "client_max_body_size") {
         if (!srv.getClientMaxBody().empty())
-            return setError("duplicate client_max_body_size");
-        if (ss >> extra)
-            return setError("client_max_body_size takes exactly one value");
-        srv.setClientMaxBody(val);
+            return Logger::error("duplicate client_max_body_size");
+        if (values.size() != 1)
+            return Logger::error("client_max_body_size takes exactly one value");
+        srv.setClientMaxBody(values[0]);
     } else
-        return setError("Unknown server directive: " + key);
+        return Logger::error("Unknown server directive: " + key);
 
     return true;
 }
 
 bool ConfigParser::parseLocation(ServerConfig& srv, const std::string& header) {
-    std::stringstream ss(header);
-    std::string       loc, path, brace;
-    ss >> loc >> path >> brace;
-
-    if (brace != "{")
-        return setError("Invalid location syntax");
-    if (path.empty() || path[0] != '/')
-        return setError("Location path required");
+    std::string              loc;
+    std::vector<std::string> values;
+    if (!parseKeyValue(header, loc, values))
+        return Logger::error("invalid location syntax");
+    if (values.size() != 2 || values[1] != "{")
+        return Logger::error("Invalid location syntax");
+    if (values.empty() || values[0][0] != '/')
+        return Logger::error("Location path required");
     for (size_t i = 0; i < srv.getLocations().size(); i++) {
-        if (srv.getLocations()[i].getPath() == path)
-            return setError("duplicate location path: " + path);
+        if (srv.getLocations()[i].getPath() == values[0])
+            return Logger::error("duplicate location path: " + values[0]);
     }
 
-    LocationConfig locCfg(path);
+    LocationConfig locCfg(values[0]);
     scope = LOCATION;
 
     std::string line;
     while (getNextLine(line)) {
-        std::string t = trim(line);
+        std::string t = trimSpacesComments(line);
         if (t.empty())
             continue;
         if (t == "}") {
@@ -247,55 +197,53 @@ bool ConfigParser::parseLocation(ServerConfig& srv, const std::string& header) {
     }
 
     srv.addLocation(locCfg);
+    if (scope != SERVER)
+        return Logger::error("Unexpected end of file, missing '}' in location block");
     return true;
 }
 bool ConfigParser::parseLocationDirective(const std::string& l, LocationConfig& loc) {
-    std::stringstream ss(l);
-    std::string       key, val, extra;
-    ss >> key >> val;
-    val = clean(val);
+    std::string              key;
+    std::vector<std::string> values;
+    if (!parseKeyValue(l, key, values))
+        return Logger::error("invalid location directive: " + l);
     if (key == "root") {
         if (!loc.getRoot().empty())
-            return setError("duplicate root");
-        if (ss >> extra)
-            return setError("root takes exactly one value");
-        loc.setRoot(val);
+            return Logger::error("duplicate root");
+        if (values.size() != 1)
+            return Logger::error("root takes exactly one value");
+        loc.setRoot(values[0]);
     } else if (key == "autoindex") {
         if (loc.getAutoIndex() != false)
-            return setError("duplicate autoindex");
-        if (val != "on" && val != "off")
-            return setError("invalid autoindex value");
-        loc.setAutoIndex(val == "on");
+            return Logger::error("duplicate autoindex");
+        if (values.size() != 1)
+            return Logger::error("autoindex takes exactly one value");
+        if (values[0] != "on" && values[0] != "off")
+            return Logger::error("invalid autoindex value");
+        loc.setAutoIndex(values[0] == "on");
     } else if (key == "index") {
-        if (!loc.getIndex().empty())
-            return setError("duplicate index");
-        loc.setIndex(val);
+        if (!loc.getIndexes().empty())
+            return Logger::error("duplicate index");
+        loc.setIndexes(values);
     } else if (key == "client_max_body_size") {
         if (!loc.getClientMaxBody().empty())
-            return setError("duplicate client_max_body_size");
-        loc.setClientMaxBody(val);
+            return Logger::error("duplicate client_max_body_size");
+        if (values.size() != 1)
+            return Logger::error("client_max_body_size takes exactly one value");
+        loc.setClientMaxBody(values[0]);
     } else if (key == "methods") {
-        val = toUpperWords(val);
-        if (!checkMethods(val))
-            return setError("invalid method: " + val);
-        loc.addAllowedMethod(val);
-        std::string m;
-        while (ss >> m) {
-            m = clean(m);
-            m = toUpperWords(m);
-            if (!checkMethods(m))
-                return setError("invalid method: " + m);
+        for (size_t i = 0; i < values.size(); i++) {
+            values[i] = toUpperWords(values[i]);
+            if (!checkAllowedMethods(values[i]))
+                return Logger::error("invalid method: " + values[i]);
             std::vector<std::string> methods = loc.getAllowedMethods();
-            for (size_t i = 0; i < methods.size(); i++) {
-                if (methods[i] == m)
-                    return setError("duplicate method: " + m);
+            for (size_t j = 0; j < methods.size(); j++) {
+                if (methods[j] == values[i])
+                    return Logger::error("duplicate method: " + values[i]);
             }
-            loc.addAllowedMethod(m);
+            loc.addAllowedMethod(values[i]);
         }
-    } else {
-        return setError("Unknown location directive: " + key);
-    }
-
+    } else
+        return Logger::error("Unknown location directive: " + key);
     return true;
 }
 
@@ -313,7 +261,7 @@ bool ConfigParser::validate() {
             LocationConfig& l = s.getLocations()[j];
             if (l.getRoot().empty()) {
                 if (s.getRoot().empty())
-                    return setError("location has no root and server has no root");
+                    return Logger::error("location has no root and server has no root");
                 l.setRoot(s.getRoot());
             }
             if (l.getAllowedMethods().empty())
@@ -325,28 +273,10 @@ bool ConfigParser::validate() {
     return true;
 }
 
-bool ConfigParser::setError(const std::string& msg) {
-    std::stringstream ss;
-    ss << msg;
-    error = ss.str();
-    return false;
-}
-
 std::vector<ServerConfig> ConfigParser::getServers() const {
     return servers;
-}
-std::string ConfigParser::getError() const {
-    return error;
 }
 
 std::string ConfigParser::getHttpClientMaxBody() const {
     return httpClientMaxBody;
-}
-bool ConfigParser::checkMethods(const std::string& m) {
-    const std::string methods[] = {"GET", "POST", "DELETE", "PUT", "PATCH", "HEAD", "OPTIONS"};
-    for (size_t i = 0; i < sizeof(methods) / sizeof(methods[0]); i++) {
-        if (methods[i] == m)
-            return true;
-    }
-    return false;
 }
