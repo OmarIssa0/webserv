@@ -80,13 +80,14 @@ bool ConfigParser::parseHttp() {
 
 ConfigParser::ServerDirectiveMap ConfigParser::getServerDirectives() {
     static ConfigParser::ServerDirectiveMap m;
-    if (m.empty()) {
-        m["listen"]               = &ServerConfig::setListen;
-        m["server_name"]          = &ServerConfig::setServerName;
-        m["root"]                 = &ServerConfig::setRoot;
-        m["index"]                = &ServerConfig::setIndexes;
-        m["client_max_body_size"] = &ServerConfig::setClientMaxBody;
-    }
+    if (!m.empty())
+        m.clear();
+    m["listen"]               = &ServerConfig::setListen;
+    m["server_name"]          = &ServerConfig::setServerName;
+    m["root"]                 = &ServerConfig::setRoot;
+    m["index"]                = &ServerConfig::setIndexes;
+    m["client_max_body_size"] = &ServerConfig::setClientMaxBody;
+
     return m;
 }
 
@@ -201,17 +202,17 @@ bool ConfigParser::validate() {
         }
         if (!httpClientMaxBody.empty() && s.getClientMaxBody().empty())
             s.setClientMaxBody(httpClientMaxBody);
-        for (size_t j = 0; j < s.getLocations().size(); j++) {
-            LocationConfig& l = s.getLocations()[j];
-            if (l.getRoot().empty()) {
+        std::vector<LocationConfig>& locs = s.getLocations();
+        for (size_t j = 0; j < locs.size(); j++) {
+            if (locs[j].getRoot().empty()) {
                 if (s.getRoot().empty())
                     return Logger::error("location has no root and server has no root");
-                l.setRoot(s.getRoot());
+                locs[j].setRoot(s.getRoot());
             }
-            if (l.getAllowedMethods().empty())
-                l.addAllowedMethod("GET");
-            if (l.getClientMaxBody().empty())
-                l.setClientMaxBody(s.getClientMaxBody());
+            if (locs[j].getAllowedMethods().empty())
+                locs[j].addAllowedMethod("GET");
+            if (locs[j].getClientMaxBody().empty())
+                locs[j].setClientMaxBody(s.getClientMaxBody());
         }
     }
     return true;

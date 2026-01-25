@@ -8,14 +8,12 @@
 class PollManager {
    private:
     std::vector<struct pollfd> fds;
-
     PollManager(const PollManager&);
     PollManager& operator=(const PollManager&);
 
    public:
     PollManager();
     ~PollManager();
-    
     void   addFd(int fd, int events);
     void   removeFd(size_t index);
     int    pollConnections(int timeout);

@@ -100,3 +100,34 @@ bool parseKeyValue(const std::string& line, std::string& key, std::vector<std::s
     }
     return !values.empty();
 }
+size_t convertMaxBodySize(const std::string& maxBody) {
+    char              unit = maxBody[maxBody.size() - 1];
+    std::stringstream ss(maxBody.substr(0, maxBody.size() - 1));
+    size_t            size;
+    ss >> size;
+    switch (unit) {
+        case 'K':
+        case 'k':
+            return size * 1024;
+        case 'M':
+        case 'm':
+            return size * 1024 * 1024;
+        case 'G':
+        case 'g':
+            return size * 1024 * 1024 * 1024;
+        default:
+            return size;
+    }
+}
+
+std::string formatSize(size_t size) {
+    if (size < 1024) {
+        return typeToString(size);
+    } else if (size < 1024 * 1024) {
+        return typeToString(size / 1024) + " K";
+    } else if (size < 1024 * 1024 * 1024) {
+        return typeToString(size / (1024 * 1024)) + " M";
+    } else {
+        return typeToString(size / (1024 * 1024 * 1024)) + " G";
+    }
+}

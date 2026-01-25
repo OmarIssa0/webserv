@@ -29,10 +29,14 @@ bool HttpRequest::parseHeaders(const std::string& headerSection) {
     if (lineEnd == std::string::npos)
         return false;
 
-    std::string requestLine = headerSection.substr(0, lineEnd);
-
-    std::stringstream ss(requestLine);
-    ss >> method >> uri >> httpVersion;
+    std::string              requestLine = headerSection.substr(0, lineEnd);
+    std::vector<std::string> values;
+    if (!parseKeyValue(requestLine, method, values))
+        return false;
+    if (values.size() != 2)
+        return false;
+    uri         = values[0];
+    httpVersion = values[1];
     if (method.empty() || uri.empty() || httpVersion.empty())
         return false;
 
@@ -40,13 +44,10 @@ bool HttpRequest::parseHeaders(const std::string& headerSection) {
     if (!checkAllowedMethods(method))
         return false;
 
-    size_t q = uri.find('?');
-    if (q != std::string::npos) {
-        queryString = uri.substr(q + 1);
-        uri         = uri.substr(0, q);
-    }
+    if (!splitByChar(uri, uri, queryString, '?'))
+        queryString = "";
 
-    size_t pos = lineEnd + 2;
+    size_t pos = lineEnd + 2; // +2 to skip \r\n
     while (pos < headerSection.size()) {
         lineEnd = headerSection.find("\r\n", pos);
         if (lineEnd == std::string::npos)
@@ -64,20 +65,23 @@ bool HttpRequest::parseHeaders(const std::string& headerSection) {
         std::string headerVal = trimSpacesComments(value);
 
         headers[headerKey] = headerVal;
-
-        if (headerKey == "content-length")
-            std::stringstream(headerVal) >> contentLength;
-        else if (headerKey == "content-type")
-            contentType = headerVal;
-
-        pos = lineEnd + 2;
+        pos                = lineEnd + 2;
     }
+    if (!headers["content-type"].empty())
+        contentType = headers["content-type"];
+    if (!headers["content-length"].empty()) {
+        std::stringstream ss(headers["content-length"]);
+        ss >> contentLength;
+    } else {
+        contentLength = 0;
+    }
+    host = headers["host"];
     return true;
 }
 
 bool HttpRequest::parseBody(const std::string& bodySection) {
     body = bodySection;
-    if (headers.count("content-length")) {
+    if (!headers["content-length"].empty()) {
         if (body.size() != contentLength)
             return false;
     } else {
@@ -110,6 +114,11 @@ size_t HttpRequest::getContentLength() const {
 std::string HttpRequest::getContentType() const {
     return contentType;
 }
+
+std::string HttpRequest::getHost() const {
+    return host;
+}
+
 // Validators
 bool HttpRequest::isComplete() const {
     return !method.empty() && !uri.empty() && !httpVersion.empty();

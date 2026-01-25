@@ -41,19 +41,18 @@ bool ServerManager::initializeServers(const std::vector<ServerConfig>& configs) 
         servers.push_back(server);
 
         std::string name = configs[i].getServerName().empty() ? "default" : configs[i].getServerName();
-        std::cout << "[INFO]: Server '" + name + "' listening on port " + typeToString(configs[i].getPort()) << std::endl;
+        Logger::info("[INFO]: Server '" + name + "' listening on port " + typeToString(configs[i].getPort()));
     }
     return !servers.empty();
 }
 
 void ServerManager::run() {
     if (!running) {
-        std::cout << "[ERROR]: ServerManager not initialized" << std::endl;
+        Logger::error("[ERROR]: ServerManager not initialized");
         return;
     }
 
-    std::cout << "[INFO]: Server manager started" << std::endl;
-
+    Logger::info("[INFO]: Server manager started");
     while (running) {
         int eventCount = pollManager.pollConnections(100);
         if (eventCount <= 0)
@@ -86,8 +85,7 @@ void ServerManager::acceptNewConnection(Server* server) {
     clients[clientFd]        = client;
     clientToServer[clientFd] = server;
     pollManager.addFd(clientFd, POLLIN);
-
-    std::cout << "[INFO]: Connection accepted on port " + typeToString(server->getPort()) << std::endl;
+    Logger::info("[INFO]: Connection accepted on port " + typeToString(server->getPort()));
 }
 
 void ServerManager::handleClientData(int clientFd) {
@@ -102,7 +100,6 @@ void ServerManager::handleClientData(int clientFd) {
     if (server) {
         processRequest(client, server);
     }
-
     closeClientConnection(clientFd);
 }
 
@@ -112,7 +109,7 @@ void ServerManager::processRequest(Client* client, Server* server) {
         return;
 
     HttpRequest request;
-    request.parseRequest(buffer);
+    request.parse(buffer);
     std::cout << "[INFO]: Request: " + request.getUri() + " on port " + typeToString(server->getPort()) << std::endl;
 
     HttpResponse response;

@@ -15,6 +15,7 @@ class HttpRequest {
     std::string                        body;          // Request body
     std::string                        contentType;   // e.g., text/html Mime type
     size_t                             contentLength; // e.g., 348
+    std::string                        host;
 
    public:
     // Parsing
@@ -29,6 +30,7 @@ class HttpRequest {
     std::string getBody() const;
     size_t      getContentLength() const;
     std::string getContentType() const;
+    std::string getHost() const;
 
     // Validators
     bool isComplete() const;
