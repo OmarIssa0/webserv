@@ -8,9 +8,17 @@ std::string toUpperWords(const std::string& str) {
     }
     return result;
 }
+std::string toLowerWords(const std::string& str) {
+    std::string result = str;
+    for (size_t i = 0; i < result.size(); ++i) {
+        if (result[i] >= 'A' && result[i] <= 'Z')
+            result[i] = std::tolower(result[i]);
+    }
+    return result;
+}
 
-std::string cleanSemicolon(const std::string& v) {
-    if (!v.empty() && v[v.size() - 1] == ';')
+std::string cleanCharEnd(const std::string& v, char c) {
+    if (!v.empty() && v[v.size() - 1] == c)
         return v.substr(0, v.size() - 1);
     return v;
 }
@@ -53,6 +61,7 @@ bool convertFileToLines(std::string file, std::vector<std::string>& lines) {
             }
         }
         std::string t = trimSpacesComments(current);
+
         if (!t.empty())
             lines.push_back(t);
         current.clear();
@@ -70,6 +79,15 @@ bool checkAllowedMethods(const std::string& m) {
     return false;
 }
 
+bool splitByChar(const std::string& line, std::string& key, std::string& value, char endChar) {
+    size_t pos = line.find(endChar);
+    if (pos == std::string::npos)
+        return false;
+    key   = line.substr(0, pos);
+    value = line.substr(pos + 1);
+    return true;
+}
+
 bool parseKeyValue(const std::string& line, std::string& key, std::vector<std::string>& values) {
     std::stringstream ss(line);
     ss >> key;
@@ -78,7 +96,7 @@ bool parseKeyValue(const std::string& line, std::string& key, std::vector<std::s
 
     std::string v;
     while (ss >> v) {
-        values.push_back(cleanSemicolon(v));
+        values.push_back(cleanCharEnd(v, ';'));
     }
     return !values.empty();
 }

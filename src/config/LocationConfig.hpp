@@ -2,23 +2,31 @@
 #define LOCATION_CONFIG_HPP
 #include <iostream>
 #include <vector>
+#include "../utils/Utils.hpp"
 class LocationConfig {
    public:
     LocationConfig(const std::string& p);
-    LocationConfig(const std::string& p, const std::string& r);
     ~LocationConfig();
+
+    bool setRoot(const std::vector<std::string>& r);
     void setRoot(const std::string& r);
+
     void setAutoIndex(bool v);
-    void setIndexes(const std::vector<std::string>& i);
+    bool setAutoIndex(const std::vector<std::string>& v);
+
+    bool setIndexes(const std::vector<std::string>& i);
     void setUploadEnabled(bool v);
     void setUploadPath(const std::string& p);
     void setCgiEnabled(bool v);
     void setCgiPath(const std::string& p);
     void setCgiExtension(const std::string& e);
     void setRedirect(const std::string& r);
-    void setClientMaxBody(const std::string& c);
-    void addAllowedMethod(const std::string& m);
 
+    void setClientMaxBody(const std::string& c);
+    bool setClientMaxBody(const std::vector<std::string>& c);
+
+    void addAllowedMethod(const std::string& m);
+    bool setAllowedMethods(const std::vector<std::string>& m);
     std::string              getPath() const;
     std::string              getRoot() const;
     bool                     getAutoIndex() const;

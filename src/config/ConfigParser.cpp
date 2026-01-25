@@ -1,10 +1,13 @@
 #include "ConfigParser.hpp"
 #include <cstdlib>
+#include "../utils/Logger.hpp"
 
 ConfigParser::ConfigParser(const std::string& f) : file(f), scope(NONE), curr_index(0) {
     if (!convertFileToLines(file, lines))
         Logger::error("Failed to read configuration file: " + file);
 }
+
+ConfigParser::~ConfigParser() {}
 
 bool ConfigParser::getNextLine(std::string& out) {
     if (curr_index >= lines.size())
@@ -17,8 +20,6 @@ bool ConfigParser::parse() {
     std::string line;
     bool        is_http_defined = false;
     while (getNextLine(line)) {
-        if (line.empty())
-            continue;
         if (line == "http {") {
             if (is_http_defined)
                 return Logger::error("only one http block allowed");
@@ -29,7 +30,6 @@ bool ConfigParser::parse() {
             if (!parseHttp())
                 return false;
             scope = NONE;
-            continue;
         } else if (line == "server {") {
             if (scope != NONE)
                 return Logger::error("server block in invalid position");
@@ -37,14 +37,9 @@ bool ConfigParser::parse() {
             if (!parseServer())
                 return false;
             scope = NONE;
-            continue;
-        }
-        return Logger::error("Invalid directive: " + line);
+        } else
+            return Logger::error("Invalid directive: " + line);
     }
-
-    if (servers.empty())
-        return Logger::error("No server defined");
-
     return validate();
 }
 
@@ -82,12 +77,26 @@ bool ConfigParser::parseHttp() {
         return Logger::error("Unexpected end of file, missing '}' in http block");
     return true;
 }
+
+ConfigParser::ServerDirectiveMap ConfigParser::getServerDirectives() {
+    static ConfigParser::ServerDirectiveMap m;
+    if (m.empty()) {
+        m["listen"]               = &ServerConfig::setListen;
+        m["server_name"]          = &ServerConfig::setServerName;
+        m["root"]                 = &ServerConfig::setRoot;
+        m["index"]                = &ServerConfig::setIndexes;
+        m["client_max_body_size"] = &ServerConfig::setClientMaxBody;
+    }
+    return m;
+}
+
 bool ConfigParser::parseServer() {
     ServerConfig srv;
-    bool         hasListen = false;
-    scope                  = SERVER;
+    scope = SERVER;
 
     std::string l;
+    serverDirectives = getServerDirectives();
+
     while (getNextLine(l)) {
         std::string t = trimSpacesComments(l);
         if (t.empty())
@@ -103,71 +112,33 @@ bool ConfigParser::parseServer() {
             continue;
         }
 
-        if (!parseServerDirective(t, srv, hasListen))
+        if (!parseServerDirective(t, srv))
             return false;
     }
-
-    if (!hasListen)
-        return Logger::error("listen is required");
-
+    if (srv.getPort() == -1 || srv.getInterface().empty())
+        return Logger::error("server missing listen directive");
     if (srv.getLocations().empty())
         return Logger::error("at least one location is required");
-
     servers.push_back(srv);
     if (scope != HTTP)
         return Logger::error("Unexpected end of file, missing '}' in server block");
     return true;
 }
-bool ConfigParser::parseServerDirective(const std::string& l, ServerConfig& srv, bool& hasListen) {
+
+bool ConfigParser::parseServerDirective(const std::string& l, ServerConfig& srv) {
     std::string              key;
     std::vector<std::string> values;
     if (!parseKeyValue(l, key, values))
         return Logger::error("invalid server directive: " + l);
-
-    if (key == "listen") {
-        if (hasListen)
-            return Logger::error("duplicate listen");
-        if (values.size() != 1)
-            return Logger::error("listen takes exactly one value");
-        size_t c = values[0].find(':');
-        if (c == std::string::npos)
-            return Logger::error("invalid listen format");
-        srv.setInterface(values[0].substr(0, c));
-        srv.setPort(std::atoi(values[0].substr(c + 1).c_str()));
-        if (srv.getPort() <= 0 || srv.getPort() > 65535)
-            return Logger::error("invalid port");
-        hasListen = true;
-    } else if (key == "root") {
-        if (!srv.getRoot().empty())
-            return Logger::error("duplicate root");
-        if (values.size() != 1)
-            return Logger::error("root takes exactly one value");
-        srv.setRoot(values[0]);
-    } else if (key == "server_name") {
-        if (!srv.getServerName().empty())
-            return Logger::error("duplicate server_name");
-        if (values.size() != 1)
-            return Logger::error("server_name takes exactly one value");
-        srv.setServerName(values[0]);
-    } else if (key == "index") {
-        if (!srv.getIndexes().empty())
-            return Logger::error("duplicate index");
-        srv.setIndexes(values);
-    } else if (key == "client_max_body_size") {
-        if (!srv.getClientMaxBody().empty())
-            return Logger::error("duplicate client_max_body_size");
-        if (values.size() != 1)
-            return Logger::error("client_max_body_size takes exactly one value");
-        srv.setClientMaxBody(values[0]);
-    } else
+    if (serverDirectives[key] == 0)
         return Logger::error("Unknown server directive: " + key);
-
-    return true;
+    return (srv.*(serverDirectives[key]))(values);
 }
 
 bool ConfigParser::parseLocation(ServerConfig& srv, const std::string& header) {
     std::string              loc;
     std::vector<std::string> values;
+    locationDirectives = getLocationDirectives();
     if (!parseKeyValue(header, loc, values))
         return Logger::error("invalid location syntax");
     if (values.size() != 2 || values[1] != "{")
@@ -184,79 +155,52 @@ bool ConfigParser::parseLocation(ServerConfig& srv, const std::string& header) {
 
     std::string line;
     while (getNextLine(line)) {
-        std::string t = trimSpacesComments(line);
-        if (t.empty())
-            continue;
-        if (t == "}") {
+        if (line == "}") {
             scope = SERVER;
             break;
-        }
-
-        if (!parseLocationDirective(t, locCfg))
+        } else if (!parseLocationDirective(line, locCfg))
             return false;
     }
-
     srv.addLocation(locCfg);
     if (scope != SERVER)
         return Logger::error("Unexpected end of file, missing '}' in location block");
     return true;
 }
+
+ConfigParser::LocationDirectiveMap ConfigParser::getLocationDirectives() {
+    static ConfigParser::LocationDirectiveMap m;
+    if (!m.empty())
+        m.clear();
+    m["root"]                 = &LocationConfig::setRoot;
+    m["autoindex"]            = &LocationConfig::setAutoIndex;
+    m["index"]                = &LocationConfig::setIndexes;
+    m["client_max_body_size"] = &LocationConfig::setClientMaxBody;
+    m["methods"]              = &LocationConfig::setAllowedMethods;
+    return m;
+}
+
 bool ConfigParser::parseLocationDirective(const std::string& l, LocationConfig& loc) {
     std::string              key;
     std::vector<std::string> values;
     if (!parseKeyValue(l, key, values))
         return Logger::error("invalid location directive: " + l);
-    if (key == "root") {
-        if (!loc.getRoot().empty())
-            return Logger::error("duplicate root");
-        if (values.size() != 1)
-            return Logger::error("root takes exactly one value");
-        loc.setRoot(values[0]);
-    } else if (key == "autoindex") {
-        if (loc.getAutoIndex() != false)
-            return Logger::error("duplicate autoindex");
-        if (values.size() != 1)
-            return Logger::error("autoindex takes exactly one value");
-        if (values[0] != "on" && values[0] != "off")
-            return Logger::error("invalid autoindex value");
-        loc.setAutoIndex(values[0] == "on");
-    } else if (key == "index") {
-        if (!loc.getIndexes().empty())
-            return Logger::error("duplicate index");
-        loc.setIndexes(values);
-    } else if (key == "client_max_body_size") {
-        if (!loc.getClientMaxBody().empty())
-            return Logger::error("duplicate client_max_body_size");
-        if (values.size() != 1)
-            return Logger::error("client_max_body_size takes exactly one value");
-        loc.setClientMaxBody(values[0]);
-    } else if (key == "methods") {
-        for (size_t i = 0; i < values.size(); i++) {
-            values[i] = toUpperWords(values[i]);
-            if (!checkAllowedMethods(values[i]))
-                return Logger::error("invalid method: " + values[i]);
-            std::vector<std::string> methods = loc.getAllowedMethods();
-            for (size_t j = 0; j < methods.size(); j++) {
-                if (methods[j] == values[i])
-                    return Logger::error("duplicate method: " + values[i]);
-            }
-            loc.addAllowedMethod(values[i]);
-        }
-    } else
+    if (locationDirectives[key] == 0)
         return Logger::error("Unknown location directive: " + key);
-    return true;
+    return (loc.*(locationDirectives[key]))(values);
 }
 
 bool ConfigParser::validate() {
+    if (servers.empty())
+        return Logger::error("No server defined");
+
     for (size_t i = 0; i < servers.size(); i++) {
         ServerConfig& s = servers[i];
-
-        if (!httpClientMaxBody.empty() && s.getClientMaxBody().empty())
-            s.setClientMaxBody(httpClientMaxBody);
         if (httpClientMaxBody.empty() && s.getClientMaxBody().empty()) {
             httpClientMaxBody = "1M";
             s.setClientMaxBody("1M");
         }
+        if (!httpClientMaxBody.empty() && s.getClientMaxBody().empty())
+            s.setClientMaxBody(httpClientMaxBody);
         for (size_t j = 0; j < s.getLocations().size(); j++) {
             LocationConfig& l = s.getLocations()[j];
             if (l.getRoot().empty()) {

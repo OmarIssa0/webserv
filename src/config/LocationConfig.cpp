@@ -1,4 +1,5 @@
 #include "LocationConfig.hpp"
+#include "../utils/Logger.hpp"
 LocationConfig::LocationConfig(const std::string& p)
     : path(p),
       root(""),
@@ -11,31 +12,45 @@ LocationConfig::LocationConfig(const std::string& p)
       cgiExtension(""),
       redirect(""),
       allowedMethods() {}
-LocationConfig::LocationConfig(const std::string& p, const std::string& r)
-    : path(p),
-      root(r),
-      autoIndex(false),
-      indexes(),
-      uploadEnabled(false),
-      uploadPath(""),
-      cgiEnabled(false),
-      cgiPath(""),
-      cgiExtension(""),
-      redirect(""),
-      allowedMethods(std::vector<std::string>(1, "GET")) {}
 
 LocationConfig::~LocationConfig() {
     allowedMethods.clear();
 }
 // setters
+bool LocationConfig::setRoot(const std::vector<std::string>& r) {
+    if (!root.empty())
+        return Logger::error("duplicate root");
+    if (r.size() != 1)
+        return Logger::error("root takes exactly one value");
+    root = r[0];
+    return true;
+}
+
 void LocationConfig::setRoot(const std::string& r) {
     root = r;
 }
+
+bool LocationConfig::setAutoIndex(const std::vector<std::string>& v) {
+    if (autoIndex != false)
+        return Logger::error("duplicate autoindex");
+    if (v.size() != 1)
+        return Logger::error("autoindex takes exactly one value");
+    if (v[0] != "on" && v[0] != "off")
+        return Logger::error("invalid autoindex value");
+    autoIndex = (v[0] == "on");
+    return true;
+}
+
 void LocationConfig::setAutoIndex(bool v) {
     autoIndex = v;
 }
-void LocationConfig::setIndexes(const std::vector<std::string>& i) {
+bool LocationConfig::setIndexes(const std::vector<std::string>& i) {
+    if (!indexes.empty())
+        return Logger::error("duplicate index");
+    if (i.empty())
+        return Logger::error("index takes at least one value");
     indexes = i;
+    return true;
 }
 void LocationConfig::setUploadEnabled(bool v) {
     uploadEnabled = v;
@@ -56,12 +71,33 @@ void LocationConfig::setRedirect(const std::string& r) {
     redirect = r;
 }
 
+bool LocationConfig::setClientMaxBody(const std::vector<std::string>& c) {
+    if (!clientMaxBody.empty())
+        return Logger::error("duplicate client_max_body_size");
+    if (c.size() != 1)
+        return Logger::error("client_max_body_size takes exactly one value");
+    clientMaxBody = c[0];
+    return true;
+}
 void LocationConfig::setClientMaxBody(const std::string& c) {
     clientMaxBody = c;
 }
 
 void LocationConfig::addAllowedMethod(const std::string& m) {
     allowedMethods.push_back(m);
+}
+bool LocationConfig::setAllowedMethods(const std::vector<std::string>& v) {
+    for (size_t i = 0; i < v.size(); i++) {
+        std::string m = toUpperWords(v[i]);
+        if (!checkAllowedMethods(m))
+            return Logger::error("invalid method: " + m);
+        for (size_t j = 0; j < allowedMethods.size(); j++) {
+            if (allowedMethods[j] == m)
+                return Logger::error("duplicate method: " + m);
+        }
+        allowedMethods.push_back(m);
+    }
+    return true;
 }
 
 // getters

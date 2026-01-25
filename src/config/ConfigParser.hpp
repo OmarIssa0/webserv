@@ -1,9 +1,9 @@
-#ifndef CONFIGPARSER_HPP
-#define CONFIGPARSER_HPP
-#include <fstream>
-#include <sstream>
+#ifndef CONFIG_PARSER_HPP
+#define CONFIG_PARSER_HPP
+
+#include <map>
+#include <string>
 #include <vector>
-#include "../utils/Logger.hpp"
 #include "../utils/Utils.hpp"
 #include "LocationConfig.hpp"
 #include "ServerConfig.hpp"
@@ -11,27 +11,40 @@
 class ConfigParser {
    public:
     ConfigParser(const std::string& f);
+    ~ConfigParser();
+
     bool                      parse();
+    std::string               getHttpClientMaxBody() const;
     std::vector<ServerConfig> getServers() const;
-    //getter
-    std::string getHttpClientMaxBody() const;
+
+    typedef bool (ServerConfig::*ServerSetter)(const std::vector<std::string>&);
+    typedef std::map<std::string, ServerSetter> ServerDirectiveMap;
+    typedef bool (LocationConfig::*LocationSetter)(const std::vector<std::string>&);
+    typedef std::map<std::string, LocationSetter> LocationDirectiveMap;
 
    private:
     enum Scope { NONE, HTTP, SERVER, LOCATION };
+
     std::string               file;
-    std::string               content_file;
     std::vector<ServerConfig> servers;
     Scope                     scope;
     size_t                    curr_index;
     std::string               httpClientMaxBody;
     std::vector<std::string>  lines;
-    bool                      parseHttp();
-    bool                      parseServer();
-    bool                      parseLocation(ServerConfig& srv, const std::string& header);
-    bool                      parseServerDirective(const std::string& l, ServerConfig& srv, bool& hasListen);
-    bool                      parseLocationDirective(const std::string& l, LocationConfig& loc);
-    bool                      getNextLine(std::string& out);
+    ServerDirectiveMap        serverDirectives;
+    LocationDirectiveMap      locationDirectives;
 
+    bool getNextLine(std::string& out);
+
+    ServerDirectiveMap   getServerDirectives();
+    LocationDirectiveMap getLocationDirectives();
+
+    bool parseHttp();
+    bool parseServer();
+    bool parseLocation(ServerConfig& srv, const std::string& header);
+    bool parseServerDirective(const std::string& l, ServerConfig& srv);
+    bool parseLocationDirective(const std::string& l, LocationConfig& loc);
     bool validate();
 };
+
 #endif
