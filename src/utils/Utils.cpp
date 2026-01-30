@@ -61,7 +61,7 @@ bool convertFileToLines(std::string file, std::vector<std::string>& lines) {
                 if (!t.empty())
                     lines.push_back(t + ((c == '{') ? " {" : (c == ';') ? ";" : ""));
                 else if (c == '{')
-                    lines.push_back("{");
+                    lines[lines.size() - 1] += " {";
                 if (c == '}')
                     lines.push_back("}");
                 current.clear();
