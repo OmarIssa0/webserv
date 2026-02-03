@@ -115,7 +115,7 @@ void Router::processRequest() {
     if (_request.getUri().length() > matchLocation->getPath().length()) {
         remainingPath = _request.getUri().substr(matchLocation->getPath().length());
     }
-
+    statusCode = 200;
     return;
 }
 
