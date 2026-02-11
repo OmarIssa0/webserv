@@ -119,7 +119,7 @@ struct stat getFileStat(const String& path) {
 
     if (stat(actualPath.c_str(), &st) == 0)
         return st;
-        
+
     if (actualPath.size() > 2 && actualPath[0] == '.' && actualPath[1] == '/') {
         actualPath = actualPath.substr(2);
         if (stat(actualPath.c_str(), &st) == 0)
@@ -341,11 +341,11 @@ String extractFilenameFromHeader(const String& contentDisposition) {
     size_t filenamePos = contentDisposition.find("filename=");
     if (filenamePos == String::npos)
         return "";
-    
+
     size_t start = filenamePos + 9; // length of "filename="
     if (start >= contentDisposition.length())
         return "";
-    
+
     // Handle quoted filenames
     if (contentDisposition[start] == '"') {
         start++;
@@ -354,7 +354,7 @@ String extractFilenameFromHeader(const String& contentDisposition) {
             return "";
         return contentDisposition.substr(start, end - start);
     }
-    
+
     // Handle unquoted filenames
     size_t end = contentDisposition.find(SEMICOLON, start);
     if (end == String::npos)
@@ -366,73 +366,84 @@ String extractBoundaryFromContentType(const String& contentType) {
     size_t boundaryPos = contentType.find("boundary=");
     if (boundaryPos == String::npos)
         return "";
-    
+
     size_t start = boundaryPos + 9; // length of "boundary="
     if (start >= contentType.length())
         return "";
-    
+
     // Find end of boundary (semicolon or end of string)
     size_t end = contentType.find(SEMICOLON, start);
     if (end == String::npos)
         end = contentType.length();
-    
+
     return trimSpaces(contentType.substr(start, end - start));
 }
 
 bool parseMultipartFormData(const String& body, const String& boundary, String& filename, String& fileContent) {
     if (boundary.empty() || body.empty())
         return false;
-    
+
     // Construct the boundary markers
     String startBoundary = "--" + boundary;
-    String endBoundary = "--" + boundary + "--";
-    
+    String endBoundary   = "--" + boundary + "--";
+
     // Find the first part
     size_t partStart = body.find(startBoundary);
     if (partStart == String::npos)
         return false;
-    
+
     partStart += startBoundary.length();
-    
+
     // Skip CRLF after boundary
     if (partStart + 2 <= body.length() && body.substr(partStart, 2) == CRLF)
         partStart += 2;
-    
+
     // Find the next boundary (end of this part)
     size_t partEnd = body.find(startBoundary, partStart);
     if (partEnd == String::npos)
         return false;
-    
+
     String part = body.substr(partStart, partEnd - partStart);
-    
+
     // Find the separator between headers and content (double CRLF)
     size_t headerEnd = part.find(DOUBLE_CRLF);
     if (headerEnd == String::npos)
         return false;
-    
+
     String headers = part.substr(0, headerEnd);
     String content = part.substr(headerEnd + 4); // Skip \r\n\r\n
-    
+
     // Remove trailing CRLF from content
     while (content.length() >= 2 && content.substr(content.length() - 2) == CRLF)
         content = content.substr(0, content.length() - 2);
-    
+
     // Parse headers to find Content-Disposition
     size_t pos = 0;
     while (pos < headers.length()) {
         size_t lineEnd = headers.find(CRLF, pos);
         if (lineEnd == String::npos)
             lineEnd = headers.length();
-        
+
         String line = headers.substr(pos, lineEnd - pos);
-        
+
         if (toLowerWords(line).find("content-disposition") != String::npos) {
             filename = extractFilenameFromHeader(line);
         }
-        
+
         pos = lineEnd + 2;
     }
-    
+
     fileContent = content;
     return !filename.empty();
+}
+
+String GUID() {
+    String guid;
+    for (int i = 0; i < GUID_LENGTH; i++) {
+        if (i == 8 || i == 12 || i == 16 || i == 20)
+            guid += '-';
+        int index = std::rand() % (sizeof(GUID_CHARSET) - 1);
+        guid += GUID_CHARSET[index];
+    }
+    return guid;
 }

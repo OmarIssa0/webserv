@@ -1,7 +1,6 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
-
 // ! HTTP STATUS CODES - 2xx Success
 #define HTTP_OK 200
 #define HTTP_CREATED 201
@@ -69,5 +68,9 @@
 // ! CGI
 #define CGI_INTERFACE "CGI/1.1"
 #define SERVER_PROTOCOL "HTTP/1.1"
+
+// ! GUID
+#define GUID_LENGTH 36
+#define GUID_CHARSET "0123456789AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz"
 
 #endif

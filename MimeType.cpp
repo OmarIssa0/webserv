@@ -1,10 +1,41 @@
-#include "src/config/MimeTypes.hpp"
-int main(int ac, char** av) {
-    if (ac < 2) {
-        std::cerr << "Usage: " << av[0] << " <assetsPath>" << std::endl;
-        return 1;
+#include <fcntl.h>
+#include <unistd.h>
+#include <iostream>
+#include <string>
+
+std::string hex_encode(const unsigned char* data) {
+    const char* hex = "0123456789abcdef";
+    std::string out;
+    for (int i = 0; i < len; i++) {
+        out.push_back(hex[data[i] >> 4]);
+        out.push_back(hex[data[i] & 0x0F]);
     }
-    MimeTypes mime;
-    std::cout << "MIME type: " << mime.get("index.ico") << std::endl;
+    return out;
+}
+
+std::string generate_session_id() {
+    unsigned char buffer[32];
+
+    int fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0)
+        return "";
+
+    int total = 0;
+    while (total < 32) {
+        int r = read(fd, buffer + total, 32 - total);
+        if (r <= 0)
+            break;
+        total += r;
+    }
+    close(fd);
+
+    if (total != 32)
+        return "";
+
+    return hex_encode(buffer, 32);
+}
+
+int main() {
+    std::cout << generate_session_id() << std::endl;
     return 0;
 }

@@ -3,14 +3,28 @@
 #include <sstream>
 
 std::string ErrorPageHandler::generateHtml(int code, const std::string& msg) const {
-    std::stringstream ss;
-    ss << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
-       << "<meta charset=\"UTF-8\">\n<title>Error " << code << "</title>\n"
-       << "<style>body { font-family: monospace; background:#f0f0f0; color:#333; }</style>\n"
-       << "</head>\n<body>\n"
-       << "<h1>Error " << code << "</h1>\n<p>" << msg << "</p>\n"
-       << "</body>\n</html>\n";
-    return ss.str();
+    String errorPage;
+
+    if (!readFileContent("www/error.html", errorPage)) {
+        // Fallback HTML if error.html is not found
+        return "<!DOCTYPE html>\n"
+               "<html lang=\"en\">\n"
+               "<head>\n"
+               "<meta charset=\"UTF-8\">\n"
+               "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+               "<title>" +
+               typeToString<int>(code) + " " + msg +
+               "</title>\n"
+               "</head>\n"
+               "<body>\n"
+               "<h1>" +
+               typeToString<int>(code) + " " + msg +
+               "</h1>\n"
+               "<p>The server encountered an error while processing your request.</p>\n"
+               "</body>\n"
+               "</html>\n";
+    }
+    return errorPage;
 }
 
 void ErrorPageHandler::handle(HttpResponse& response, const Router& router, const MimeTypes& mimeTypes) const {

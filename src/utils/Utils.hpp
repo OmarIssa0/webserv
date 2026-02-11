@@ -1,6 +1,7 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 #include <sys/stat.h>
+#include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -51,6 +52,7 @@ String normalizePath(const String& path);
 String joinPaths(const String& firstPath, const String& secondPath);
 bool   pathStartsWith(const String& path, const String& prefix);
 
+String generateGUID();
 // Map methods
 template <typename MapType, typename KeyType>
 bool keyExists(const MapType& m, const KeyType& key) {
