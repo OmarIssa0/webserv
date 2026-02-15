@@ -4,6 +4,8 @@
 #include <fstream>
 #include "../config/MimeTypes.hpp"
 #include "../handlers/CgiHandler.hpp"
+#include "../handlers/CgiProcess.hpp"
+#include "../handlers/DeleteHandler.hpp"
 #include "../handlers/DirectoryListingHandler.hpp"
 #include "../handlers/ErrorPageHandler.hpp"
 #include "../handlers/StaticFileHandler.hpp"
@@ -18,16 +20,18 @@ class ResponseBuilder {
     ResponseBuilder(const MimeTypes& _mimeTypes);
     ~ResponseBuilder();
 
-    HttpResponse build(const RouteResult& resultRouter);
+    HttpResponse build(const RouteResult& resultRouter, CgiProcess* cgi = NULL);
     HttpResponse buildError(int code, const std::string& msg);
+    HttpResponse buildCgiResponse(CgiProcess& cgi);
 
    private:
     MimeTypes mimeTypes;
 
     bool handleStatic(HttpResponse& response, const RouteResult& resultRouter) const;
+    bool handleDelete(HttpResponse& response, const RouteResult& resultRouter) const;
     bool handleDirectory(HttpResponse& response, const RouteResult& resultRouter) const;
-    bool handleCgi(HttpResponse& response, const RouteResult& resultRouter) const;
     bool handleUpload(HttpResponse& response, const RouteResult& resultRouter) const;
+    bool handleCgi(HttpResponse& response, const RouteResult& resultRouter, CgiProcess* cgi) const;
     void handleError(HttpResponse& response, const RouteResult& resultRouter);
 
     // Helpers

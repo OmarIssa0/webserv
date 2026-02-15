@@ -1,23 +1,29 @@
 #ifndef CGI_HANDLER_HPP
 #define CGI_HANDLER_HPP
 
+#include <sys/types.h>
 #include <string>
 #include <vector>
-#include "../http/HttpResponse.hpp"
-#include "../http/RouteResult.hpp"
+#include "CgiProcess.hpp"
 #include "IHandler.hpp"
+
 class CgiHandler : public IHandler {
    public:
     CgiHandler();
+    CgiHandler(CgiProcess& cgi);
     CgiHandler(const CgiHandler& other);
     CgiHandler& operator=(const CgiHandler& other);
     ~CgiHandler();
 
     bool handle(const RouteResult& resultRouter, HttpResponse& response) const;
 
+    static bool parseOutput(const String& raw, HttpResponse& response);
+
    private:
-    std::vector<std::string> buildEnv(const RouteResult& resultRouter) const;
-    std::vector<char*>       convertEnv(const std::vector<std::string>& env) const;
+    CgiProcess* _cgi;
+
+    VectorString       buildEnv(const RouteResult& resultRouter) const;
+    std::vector<char*> convertEnv(const VectorString& env) const;
 };
 
 #endif

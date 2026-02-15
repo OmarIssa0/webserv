@@ -1,6 +1,8 @@
 #ifndef SERVER_MANAGER_HPP
 #define SERVER_MANAGER_HPP
 
+#include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <iostream>
 #include <map>
@@ -40,6 +42,8 @@ class ServerManager {
     MapIntServerPtr          clientToServer;
     MapIntVectorServerConfig serverToConfigs;
     MimeTypes                mimeTypes;
+    MapInt                   cgiPipeToClient;
+
     // Internal helpers
     bool    initializeServers(const VectorServerConfig& serversConfigs);
     bool    acceptNewConnection(Server* server);
@@ -49,7 +53,15 @@ class ServerManager {
     void    closeClientConnection(int clientFd);
     Server* findServerByFd(int serverFd) const;
     bool    isServerSocket(int fd) const;
+    bool    isCgiPipe(int fd) const;
     void    processRequest(Client* client, Server* server);
+
+    // CGI pipe helpers
+    void registerCgiPipes(Client* client);
+    void handleCgiRead(int pipeFd);
+    void handleCgiWrite(int pipeFd);
+    void cleanupClientCgi(Client* client);
+    void removeCgiPipe(int pipeFd);
 
     Server*              createServerForListener(const String& listenerKey, const VectorServerConfig& configs, PollManager& pollMgr);
     ListenerToConfigsMap getListerToConfigs();

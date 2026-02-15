@@ -10,17 +10,16 @@ HandlerType getHandlerType(const RouteResult& resultRouter) {
     if (resultRouter.getIsCgiRequest())
         return CGI;
     String path = resultRouter.getPathRootUri();
-    if (getFileType(path) == DIRECTORY && resultRouter.getLocation()->getAutoIndex() &&
-        resultRouter.getRequest().getMethod() == "GET")
+    if (getFileType(path) == DIRECTORY && resultRouter.getLocation()->getAutoIndex() && resultRouter.getRequest().getMethod() == "GET")
         return DIRECTORY_LISTING;
     if (getFileType(path) == SINGLEFILE && resultRouter.getRequest().getMethod() == "GET")
         return STATIC;
     if (getFileType(path) == SINGLEFILE && resultRouter.getRequest().getMethod() == "DELETE")
-        return STATIC;
+        return DELETE_FILE;
     return NOT_FOUND;
 }
 
-HttpResponse ResponseBuilder::build(const RouteResult& resultRouter) {
+HttpResponse ResponseBuilder::build(const RouteResult& resultRouter, CgiProcess* cgi) {
     HttpResponse response;
 
     // Handle redirect
@@ -47,11 +46,15 @@ HttpResponse ResponseBuilder::build(const RouteResult& resultRouter) {
                 return response;
             break;
         case CGI:
-            if (handleCgi(response, resultRouter))
+            if (cgi && handleCgi(response, resultRouter, cgi))
                 return response;
             break;
         case STATIC:
             if (handleStatic(response, resultRouter))
+                return response;
+            break;
+        case DELETE_FILE:
+            if (handleDelete(response, resultRouter))
                 return response;
             break;
         default:
@@ -74,18 +77,14 @@ bool ResponseBuilder::handleStatic(HttpResponse& response, const RouteResult& re
     return filehandler.handle(resultRouter, response);
 }
 
+bool ResponseBuilder::handleDelete(HttpResponse& response, const RouteResult& resultRouter) const {
+    DeleteHandler handler;
+    return handler.handle(resultRouter, response);
+}
+
 bool ResponseBuilder::handleDirectory(HttpResponse& response, const RouteResult& resultRouter) const {
     DirectoryListingHandler dirHandler;
     return dirHandler.handle(resultRouter, response);
-}
-
-bool ResponseBuilder::handleCgi(HttpResponse& response, const RouteResult& resultRouter) const {
-    const LocationConfig* loc = resultRouter.getLocation();
-    if (!loc || !resultRouter.getIsCgiRequest())
-        return false;
-
-    CgiHandler cgiHandler;
-    return cgiHandler.handle(resultRouter, response);
 }
 
 bool ResponseBuilder::handleUpload(HttpResponse& response, const RouteResult& resultRouter) const {
@@ -143,4 +142,21 @@ String ResponseBuilder::getErrorPagePath(const RouteResult& resultRouter, int co
         return path;
 
     return "";
+}
+
+bool ResponseBuilder::handleCgi(HttpResponse& response, const RouteResult& resultRouter, CgiProcess* cgi) const {
+    if (!cgi)
+        return false;
+    CgiHandler handler(*cgi);
+    return handler.handle(resultRouter, response);
+}
+
+HttpResponse ResponseBuilder::buildCgiResponse(CgiProcess& cgi) {
+    HttpResponse response;
+    if (cgi.finish() && CgiHandler::parseOutput(cgi.getOutput(), response))
+        response.addHeader(HEADER_CONTENT_LENGTH, typeToString<size_t>(response.getBody().size()));
+    else
+        response = buildError(HTTP_INTERNAL_SERVER_ERROR, "CGI Error");
+    cgi.reset();
+    return response;
 }

@@ -1,16 +1,20 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
+#include <sys/types.h>
 #include <unistd.h>
 #include <ctime>
 #include <iostream>
+#include "../handlers/CgiProcess.hpp"
 #include "../utils/Types.hpp"
+
 class Client {
    private:
-    int    client_fd;
-    String storeReceiveData;
-    String storeSendData;
-    time_t lastActivity;
+    int        client_fd;
+    String     storeReceiveData;
+    String     storeSendData;
+    time_t     lastActivity;
+    CgiProcess _cgi;
 
    public:
     Client(const Client&);
@@ -28,6 +32,9 @@ class Client {
     String  getStoreReceiveData() const;
     String  getStoreSendData() const;
     int     getFd() const;
+
+    CgiProcess&       getCgi();
+    const CgiProcess& getCgi() const;
 };
 
 #endif

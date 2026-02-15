@@ -14,6 +14,7 @@ class Server;
 typedef std::string                          String;
 typedef std::vector<String>                  VectorString;
 typedef std::map<String, String>             MapString;
+typedef std::map<int, int>                   MapInt;
 typedef std::map<String, VectorString>       MapValueVector;
 typedef std::vector<ServerConfig>            VectorServerConfig;
 typedef std::map<String, VectorServerConfig> ListenerToConfigsMap;

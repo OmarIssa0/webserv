@@ -36,13 +36,14 @@ bool Server::configureSocket() {
 bool Server::bindSocket() {
     struct addrinfo hints, *res;
     std::memset(&hints, 0, sizeof(hints));
-    hints.ai_family       = AF_INET;
-    hints.ai_socktype     = SOCK_STREAM;
-    hints.ai_flags        = AI_PASSIVE;
-    String      iface     = config.getInterface(listenIndex);
-    int         portNum   = config.getPort(listenIndex);
-    const char* interface = iface.c_str();
-    const char* portStr   = typeToString<int>(portNum).c_str();
+    hints.ai_family        = AF_INET;
+    hints.ai_socktype      = SOCK_STREAM;
+    hints.ai_flags         = AI_PASSIVE;
+    String      iface      = config.getInterface(listenIndex);
+    int         portNum    = config.getPort(listenIndex);
+    const char* interface  = iface.c_str();
+    String      portString = typeToString<int>(portNum);
+    const char* portStr    = portString.c_str();
     if (getaddrinfo(interface, portStr, &hints, &res) != 0)
         return Logger::error("getaddrinfo failed");
     int bindResult = bind(server_fd, res->ai_addr, res->ai_addrlen);
@@ -66,7 +67,7 @@ bool Server::init() {
         }
         return Logger::error("[ERROR]: Server initialization failed");
     }
-    if (!createNonBlockingSocket(server_fd)) {
+    if (!setNonBlocking(server_fd)) {
         close(server_fd);
         server_fd = -1;
         return Logger::error("[ERROR]: Server initialization failed");
@@ -84,20 +85,9 @@ void Server::stop() {
     running = false;
 }
 
-bool Server::createNonBlockingSocket(int fd) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) {
-        return Logger::error("[ERROR]: Failed to get socket flags");
-    }
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        return Logger::error("[ERROR]: Failed to set non-blocking mode");
-    }
-    return true;
-}
-
 int Server::acceptConnection(sockaddr_in* client_addr) {
     if (!running || server_fd == -1) {
-        return Logger::error("[ERROR]: Cannot accept connection: server not running");
+        Logger::error("[ERROR]: Cannot accept connection: server not running");
         return -1;
     }
 
@@ -109,7 +99,7 @@ int Server::acceptConnection(sockaddr_in* client_addr) {
         Logger::error("[ERROR]: Failed to accept new connection");
         return -1;
     }
-    if (!createNonBlockingSocket(client_fd)) {
+    if (!setNonBlocking(client_fd)) {
         close(client_fd);
         Logger::error("[ERROR]: Failed to set non-blocking mode for client socket");
         return -1;

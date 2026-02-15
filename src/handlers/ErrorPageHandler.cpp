@@ -35,7 +35,7 @@ void ErrorPageHandler::handle(HttpResponse& response, const RouteResult& resultR
     // Check for custom error page in location first, then server
     const std::string customPage = resultRouter.getLocation() ? resultRouter.getLocation()->getErrorPage(code) : "";
     if (!customPage.empty() && readFileContent(customPage, body)) {
-        response.setStatus(code, "Error");
+        response.setStatus(code, msg);
         response.addHeader("Content-Type", mimeTypes.get(customPage));
         response.addHeader("Content-Length", typeToString<size_t>(body.size()));
         response.setBody(body);
@@ -44,7 +44,7 @@ void ErrorPageHandler::handle(HttpResponse& response, const RouteResult& resultR
 
     const std::string serverPage = resultRouter.getServer() ? resultRouter.getServer()->getErrorPage(code) : "";
     if (!serverPage.empty() && readFileContent(serverPage, body)) {
-        response.setStatus(code, "Error");
+        response.setStatus(code, msg);
         response.addHeader("Content-Type", mimeTypes.get(serverPage));
         response.addHeader("Content-Length", typeToString<size_t>(body.size()));
         response.setBody(body);
@@ -53,7 +53,7 @@ void ErrorPageHandler::handle(HttpResponse& response, const RouteResult& resultR
 
     // Fallback HTML
     body = generateHtml(code, msg);
-    response.setStatus(code, "Error");
+    response.setStatus(code, msg);
     response.addHeader("Content-Type", "text/html");
     response.addHeader("Content-Length", typeToString<size_t>(body.size()));
     response.setBody(body);

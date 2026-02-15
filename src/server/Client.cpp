@@ -1,17 +1,22 @@
 #include "Client.hpp"
 #include "../utils/Utils.hpp"
 
-Client::Client() : client_fd(-1) {}
+Client::Client() : client_fd(-1), lastActivity(0) {}
 
 Client::Client(const Client& other)
-    : client_fd(other.client_fd), storeReceiveData(other.storeReceiveData), storeSendData(other.storeSendData), lastActivity(other.lastActivity) {}
+    : client_fd(other.client_fd),
+      storeReceiveData(other.storeReceiveData),
+      storeSendData(other.storeSendData),
+      lastActivity(other.lastActivity),
+      _cgi(other._cgi) {}
 
 Client& Client::operator=(const Client& other) {
     if (this != &other) {
         client_fd        = other.client_fd;
-        lastActivity     = other.lastActivity;
         storeReceiveData = other.storeReceiveData;
         storeSendData    = other.storeSendData;
+        lastActivity     = other.lastActivity;
+        _cgi             = other._cgi;
     }
     return *this;
 }
@@ -25,10 +30,10 @@ Client::~Client() {
 }
 
 ssize_t Client::receiveData() {
-    char    tmp[1024];
+    char    tmp[BUFFER_SIZE];
     ssize_t total = 0;
     ssize_t n;
-    while ((n = read(client_fd, tmp, 1024)) > 0) {
+    while ((n = read(client_fd, tmp, BUFFER_SIZE)) > 0) {
         storeReceiveData.append(tmp, n);
         total += n;
     }
@@ -70,11 +75,16 @@ void Client::closeConnection() {
 String Client::getStoreReceiveData() const {
     return storeReceiveData;
 }
-
 String Client::getStoreSendData() const {
     return storeSendData;
 }
-
 int Client::getFd() const {
     return client_fd;
+}
+
+CgiProcess& Client::getCgi() {
+    return _cgi;
+}
+const CgiProcess& Client::getCgi() const {
+    return _cgi;
 }

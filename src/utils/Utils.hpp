@@ -1,5 +1,6 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <cstdlib>
 #include <ctime>
@@ -53,6 +54,20 @@ String formatSize(double size);
 String normalizePath(const String& path);
 String joinPaths(const String& firstPath, const String& secondPath);
 bool   pathStartsWith(const String& path, const String& prefix);
+
+// Socket / FD methods
+bool setNonBlocking(int fd);
+
+String getUriRemainder(const String& uri, const String& locPath);
+String extractDirectoryFromPath(const String& path);
+
+// Chunked transfer helpers
+bool isChunkedTransferEncoding(const String& headers);
+bool decodeChunkedBody(const String& chunkedBody, String& decodedBody);
+// Generic header extraction: returns true if header found and fills `outValue` (trimmed)
+bool getHeaderValue(const String& headers, const String& headerName, String& outValue);
+// Convenience: parse Content-Length header (returns 0 when missing/invalid)
+size_t extractContentLength(const String& headers);
 
 String generateGUID();
 // Map methods

@@ -15,6 +15,7 @@ TEST_PATHS = [
     "/index.html",
     "/login",
     "/notfound",
+    "/aaaaa",
 ]
 
 WEB_SERV_BIN = "./webserv"   # change if needed

@@ -100,7 +100,7 @@ bool convertFileToLines(String file, VectorString& lines) {
                 String t = trimSpacesComments(current);
                 if (!t.empty())
                     lines.push_back(t + ((c == '{') ? " {" : (c == ';') ? ";" : ""));
-                else if (c == '{')
+                else if (c == '{' && !lines.empty())
                     lines[lines.size() - 1] += " {";
                 if (c == '}')
                     lines.push_back("}");
@@ -295,18 +295,49 @@ String formatSize(double size) {
 }
 
 String normalizePath(const String& path) {
-    String normalized = path;
-
-    if (normalized.empty())
+    if (path.empty())
         return "/";
-    String result;
-    if (normalized[0] != '/')
-        result += '/';
-    for (size_t i = 0; i < normalized.length(); i++) {
-        if (normalized[i] == '/' && i + 1 < normalized.length() && normalized[i + 1] == '/')
+
+    // First pass: remove double slashes and build clean path
+    String cleaned;
+    if (path[0] != '/')
+        cleaned += '/';
+    for (size_t i = 0; i < path.length(); i++) {
+        if (path[i] == '/' && i + 1 < path.length() && path[i + 1] == '/')
             continue;
-        result += normalized[i];
+        cleaned += path[i];
     }
+
+    // Second pass: resolve "." and ".." segments
+    VectorString segments;
+    size_t       start = 0;
+    for (size_t i = 0; i <= cleaned.length(); i++) {
+        if (i == cleaned.length() || cleaned[i] == '/') {
+            if (i > start) {
+                String seg = cleaned.substr(start, i - start);
+                if (seg == "..") {
+                    if (!segments.empty())
+                        segments.pop_back();
+                } else if (seg != ".") {
+                    segments.push_back(seg);
+                }
+            }
+            start = i + 1;
+        }
+    }
+
+    // Rebuild path
+    String result = "/";
+    for (size_t i = 0; i < segments.size(); i++) {
+        result += segments[i];
+        if (i + 1 < segments.size())
+            result += "/";
+    }
+
+    // Preserve trailing slash if original had one (and path isn't just "/")
+    if (result.size() > 1 && !cleaned.empty() && cleaned[cleaned.size() - 1] == '/')
+        result += "/";
+
     return result;
 }
 
@@ -455,6 +486,94 @@ bool parseMultipartFormData(const String& body, const String& boundary, String& 
     return !filename.empty();
 }
 
+// --- Chunked transfer helpers -------------------------------------------------
+bool getHeaderValue(const String& headers, const String& headerName, String& outValue) {
+    outValue.clear();
+    if (headerName.empty() || headers.empty())
+        return false;
+    String lowerHeaders = toLowerWords(headers);
+    String search = toLowerWords(headerName);
+    if (search.find(':') == String::npos)
+        search += ':';
+    size_t pos = lowerHeaders.find(search);
+    if (pos == String::npos)
+        return false;
+    size_t valueStart = pos + search.size();
+    size_t endLine = lowerHeaders.find("\r\n", valueStart);
+    if (endLine == String::npos)
+        endLine = lowerHeaders.size();
+    outValue = trimSpaces(headers.substr(valueStart, endLine - valueStart));
+    return !outValue.empty();
+}
+
+bool isChunkedTransferEncoding(const String& headers) {
+    String val;
+    if (!getHeaderValue(headers, "transfer-encoding", val))
+        return false;
+    val = toLowerWords(val);
+    return val.find("chunked") != String::npos;
+}
+
+bool decodeChunkedBody(const String& chunkedBody, String& decodedBody) {
+    decodedBody.clear();
+    size_t pos = 0;
+
+    while (pos < chunkedBody.size()) {
+        // Find end of chunk size line
+        size_t lineEnd = chunkedBody.find("\r\n", pos);
+        if (lineEnd == String::npos)
+            return false;
+
+        // Parse chunk size (hex)
+        String sizeStr = trimSpaces(chunkedBody.substr(pos, lineEnd - pos));
+        // Remove chunk extensions (after optional semicolon)
+        size_t semiPos = sizeStr.find(';');
+        if (semiPos != String::npos)
+            sizeStr = sizeStr.substr(0, semiPos);
+
+        unsigned long chunkSize = 0;
+        for (size_t i = 0; i < sizeStr.size(); i++) {
+            char c = sizeStr[i];
+            chunkSize *= 16;
+            if (c >= '0' && c <= '9')
+                chunkSize += c - '0';
+            else if (c >= 'a' && c <= 'f')
+                chunkSize += c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F')
+                chunkSize += c - 'A' + 10;
+            else
+                return false;
+        }
+
+        pos = lineEnd + 2; // skip \r\n
+
+        if (chunkSize == 0)
+            return true; // last chunk
+
+        if (pos + chunkSize > chunkedBody.size())
+            return false; // incomplete chunk
+
+        decodedBody += chunkedBody.substr(pos, chunkSize);
+        pos += chunkSize;
+
+        // Skip trailing \r\n after chunk data
+        if (pos + 2 > chunkedBody.size() || chunkedBody.substr(pos, 2) != "\r\n")
+            return false;
+        pos += 2;
+    }
+    return false; // didn't find terminating 0-size chunk
+}
+
+size_t extractContentLength(const String& headers) {
+    String val;
+    if (!getHeaderValue(headers, "content-length", val))
+        return 0;
+    val = trimSpaces(val);
+    if (val.empty())
+        return 0;
+    return stringToType<size_t>(val);
+}
+
 String GUID() {
     String guid;
     for (int i = 0; i < GUID_LENGTH; i++) {
@@ -464,4 +583,35 @@ String GUID() {
         guid += GUID_CHARSET[index];
     }
     return guid;
+}
+
+bool setNonBlocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        return Logger::error("Failed to get fd flags");
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+        return Logger::error("Failed to set non-blocking mode");
+    return true;
+}
+
+String getUriRemainder(const String& uri, const String& locPath) {
+    String normalUri = normalizePath(uri);
+    String normalLoc = normalizePath(locPath);
+    String rest;
+    if (normalLoc == "/")
+        rest = normalUri;
+    else if (pathStartsWith(normalUri, normalLoc))
+        rest = normalUri.substr(normalLoc.length());
+    else
+        rest = normalUri;
+    if (rest.empty() || rest[0] != '/')
+        rest = "/" + rest;
+    return rest;
+}
+
+String extractDirectoryFromPath(const String& path) {
+    String dir, file;
+    if (splitByChar(path, dir, file, '/', true))
+        return dir;
+    return ".";
 }

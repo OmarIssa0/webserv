@@ -20,52 +20,39 @@ void Router::resolveCgiScriptAndPathInfo(const LocationConfig* loc, String& scri
     if (!loc || !loc->hasCgi())
         return;
 
-    // Get the base root for this location
     String root    = loc->getRoot();
     String locPath = normalizePath(loc->getPath());
     String uri     = normalizePath(_request.getUri());
+    String rest    = getUriRemainder(uri, locPath);
+    String basePath = joinPaths(root, locPath);
 
-    // Strip query string from URI
-    size_t qpos = uri.find('?');
-    if (qpos != String::npos)
-        uri = uri.substr(0, qpos);
+    // Walk URI segments to find the CGI script file
+    VectorString segments;
+    splitByString(rest, segments, "/");
 
-    // Get the part of the URI after the location prefix
-    String rest = (locPath == "/") ? uri : (pathStartsWith(uri, locPath) ? uri.substr(locPath.length()) : uri);
     String accumulated;
-    size_t pos = 0;
-    while (pos < rest.length()) {
-        // Find next slash
-        size_t nextSlash = rest.find('/', pos == 0 && rest[0] == '/' ? 1 : pos);
-        if (nextSlash == 0) {
-            pos = 1;
+    for (size_t i = 0; i < segments.size(); ++i) {
+        if (segments[i].empty())
             continue;
-        } // skip leading slash
-        String segment = (nextSlash == String::npos) ? rest.substr(pos) : rest.substr(pos, nextSlash - pos);
-        if (segment.empty()) {
-            pos = (nextSlash == String::npos) ? rest.length() : nextSlash + 1;
-            continue;
-        }
 
-        if (accumulated.empty())
-            accumulated = "/" + segment;
-        else
-            accumulated += "/" + segment;
+        accumulated += "/" + segments[i];
+        String candidate = joinPaths(basePath, accumulated);
 
-        String candidate = joinPaths(root, accumulated);
         if (fileExists(candidate) && getFileType(candidate) == SINGLEFILE && isCgiRequest(candidate, *loc)) {
             scriptPath = candidate;
             // Everything after this segment is PATH_INFO
-            size_t afterScript = (nextSlash == String::npos) ? rest.length() : nextSlash;
-            if (afterScript < rest.length())
-                pathInfo = rest.substr(afterScript);
+            String remaining;
+            for (size_t j = i + 1; j < segments.size(); ++j) {
+                if (!segments[j].empty())
+                    remaining += "/" + segments[j];
+            }
+            pathInfo = remaining;
             return;
         }
-        pos = (nextSlash == String::npos) ? rest.length() : nextSlash + 1;
     }
 
-    // Fallback: try the full resolved path
-    scriptPath = joinPaths(root, rest.empty() ? "/" : rest);
+    // Fallback: try full resolved path
+    scriptPath = joinPaths(basePath, rest.empty() ? "/" : rest);
 }
 
 // Main request processing
@@ -205,20 +192,8 @@ String Router::resolveFilesystemPath(const LocationConfig* loc) const {
 
     String root    = loc->getRoot();
     String locPath = normalizePath(loc->getPath());
-
-    String uri = normalizePath(_request.getUri());
-    // compute the part of URI after the location prefix
-    // firstgo topath start with rest for /login and location /login rest is empty becasue when location and uri pic.jpg rest is /pic.jpg
-    String rest;
-    if (locPath == "/") {
-        rest = uri;
-    } else if (pathStartsWith(uri, locPath)) {
-        rest = uri.substr(locPath.length());
-    } else {
-        rest = uri;
-    }
-    if (rest.empty() || rest[0] != '/')
-        rest = "/" + rest;
+    String uri     = normalizePath(_request.getUri());
+    String rest    = getUriRemainder(uri, locPath);
     String fullPath = joinPaths(root, locPath);
     return joinPaths(fullPath, rest);
 }

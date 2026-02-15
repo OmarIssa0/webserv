@@ -1,134 +1,38 @@
 #include "CgiHandler.hpp"
-#include <sys/wait.h>
 #include <unistd.h>
-#include <iostream>
+#include <cstdlib>
+#include <sstream>
 #include "../utils/Logger.hpp"
 #include "../utils/Utils.hpp"
 
-CgiHandler::CgiHandler() {}
-CgiHandler::CgiHandler(const CgiHandler& other) {
-    (void)other;
-}
+CgiHandler::CgiHandler() : _cgi(NULL) {}
+CgiHandler::CgiHandler(CgiProcess& cgi) : _cgi(&cgi) {}
+CgiHandler::CgiHandler(const CgiHandler& other) : IHandler(), _cgi(other._cgi) {}
 CgiHandler& CgiHandler::operator=(const CgiHandler& other) {
-    (void)other;
+    if (this != &other)
+        _cgi = other._cgi;
     return *this;
 }
 CgiHandler::~CgiHandler() {}
 
-// Build environment variables from Router and HttpRequest
-VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
-    std::vector<String> env;
-
-    const HttpRequest&    req = resultRouter.getRequest();
-    const LocationConfig* loc = resultRouter.getLocation();
-    if (!loc)
-        return env;
-
-    std::string method = req.getMethod();
-    env.push_back("REQUEST_METHOD=" + method);
-    env.push_back("QUERY_STRING=" + req.getQueryString());
-
-    size_t contentLength = req.getContentLength();
-    env.push_back("CONTENT_LENGTH=" + typeToString<size_t>(contentLength));
-    if (!req.getContentType().empty())
-        env.push_back("CONTENT_TYPE=" + req.getContentType());
-    env.push_back("SCRIPT_NAME=" + loc->getPath());
-    env.push_back("SCRIPT_FILENAME=" + resultRouter.getPathRootUri());
-    env.push_back("PATH_INFO=" + resultRouter.getRemainingPath());
-    env.push_back("SERVER_NAME=" + req.getHost());
-    env.push_back("SERVER_PORT=" + typeToString<int>(req.getPort()));
-    env.push_back("GATEWAY_INTERFACE=" + String(CGI_INTERFACE));
-    env.push_back("SERVER_PROTOCOL=" + String(SERVER_PROTOCOL));
-
-    // Headers
-    const MapString& headers = req.getHeaders();
-    for (MapString::const_iterator it = headers.begin(); it != headers.end(); ++it) {
-        String key = it->first;
-        for (size_t i = 0; i < key.size(); ++i) {
-            if (key[i] == '-')
-                key[i] = '_';
-            else
-                key[i] = toupper(key[i]);
-        }
-        env.push_back("HTTP_" + key + "=" + it->second);
-    }
-
-    return env;
-}
-
-std::vector<char*> CgiHandler::convertEnv(const std::vector<String>& env) const {
-    std::vector<char*> result;
-    for (size_t i = 0; i < env.size(); ++i)
-        result.push_back(const_cast<char*>(env[i].c_str()));
-    result.push_back(NULL);
-    return result;
-}
-
-bool parseCgiOutput(const std::string& raw, HttpResponse& response) {
-    size_t headerEnd = raw.find("\r\n\r\n");
-    size_t headerEndLength = 4;
-    
-    if (headerEnd == std::string::npos) {
-        headerEnd = raw.find("\n\n");
-        headerEndLength = 2;
-    }
-
-    if (headerEnd == std::string::npos)
-        return false;
-
-    std::string headerPart = raw.substr(0, headerEnd);
-    std::string bodyPart   = raw.substr(headerEnd + headerEndLength);
-
-    std::stringstream ss(headerPart);
-    std::string       line;
-    bool statusSet = false;
-
-    while (std::getline(ss, line)) {
-        if (!line.empty() && line[line.size() - 1] == '\r')
-            line.erase(line.size() - 1);
-
-        size_t colon = line.find(':');
-        if (colon == std::string::npos)
-            continue;
-
-        std::string key = line.substr(0, colon);
-        std::string val = line.substr(colon + 1);
-
-        key = trimSpaces(key);
-        val = trimSpaces(val);
-
-        if (toLowerWords(key) == "status") {
-            int code = atoi(val.c_str());
-            response.setStatus(code, "OK");
-            statusSet = true;
-        } else {
-            response.addHeader(key, val);
-        }
-    }
-    
-    // If no Status header was provided, default to 200 OK
-    if (!statusSet) {
-        response.setStatus(HTTP_OK, "OK");
-    }
-
-    response.setBody(bodyPart);
-    return true;
-}
+// ─── IHandler interface ──────────────────────────────────────────────────────
 
 bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response) const {
-    const LocationConfig* loc     = resultRouter.getLocation();
-    const HttpRequest     request = resultRouter.getRequest();
+    (void)response;
+    if (!_cgi)
+        return false;
+
+    const LocationConfig* loc = resultRouter.getLocation();
     if (!loc || !loc->hasCgi())
         return false;
 
-    String scriptName, extension;
-    extension = extractFileExtension(resultRouter.getPathRootUri());
+    String extension = extractFileExtension(resultRouter.getPathRootUri());
     if (extension.empty())
         return Logger::error("Failed to parse CGI extension");
-        
+
     String interpreter = loc->getCgiInterpreter(extension);
-    int    parentToChild[2]; // this is use for send server body (post) to child to it can access them
-    int    childToParent[2]; // this is use for make server read all output from cgi child
+    int    parentToChild[2];
+    int    childToParent[2];
     if (pipe(parentToChild) == -1)
         return Logger::error("Failed to create pipe for CGI");
     if (pipe(childToParent) == -1) {
@@ -147,19 +51,19 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response)
     }
 
     if (pid == 0) {
-        // send request from server to child (mean the unused is write in child)
-        //  read output from client to server (mean the unsed is read not use i just fill the output)
         close(parentToChild[1]);
         close(childToParent[0]);
-        // i must link the used fds
-        dup2(parentToChild[0], STDIN_FILENO);  // in parent the fd[1] have data to write
-        dup2(childToParent[1], STDOUT_FILENO); // in parent you can write use fd[1] and read it use fd[0]
-
-        // it is linked now close them
+        dup2(parentToChild[0], STDIN_FILENO);
+        dup2(childToParent[1], STDOUT_FILENO);
         close(parentToChild[0]);
         close(childToParent[1]);
 
-        // convert all requierd data
+        String scriptDir = extractDirectoryFromPath(resultRouter.getPathRootUri());
+        if (!scriptDir.empty() && chdir(scriptDir.c_str()) != 0) {
+            perror("chdir failed");
+            _exit(1);
+        }
+
         VectorString       envStrings = buildEnv(resultRouter);
         std::vector<char*> env        = convertEnv(envStrings);
 
@@ -172,32 +76,93 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response)
         perror("execve failed");
         _exit(1);
     }
-    // in parent what is fds unused i dont need read from parent the child read them
-    // and the write function to child fd not need the child write them
+
     close(parentToChild[0]);
     close(childToParent[1]);
-    if (request.getContentLength() > 0) {
-        std::string body = request.getBody();
-        write(parentToChild[1], body.c_str(), body.size());
-    }
-    close(parentToChild[1]);
+    setNonBlocking(parentToChild[1]);
+    setNonBlocking(childToParent[0]);
 
-    String  cgiOutput;
-    char    buffer[1024];
-    ssize_t n;
+    _cgi->init(pid, parentToChild[1], childToParent[0], resultRouter.getRequest().getBody());
+    return true;
+}
 
-    while ((n = read(childToParent[0], buffer, 1023)) > 0) {
-        buffer[n] = '\0';
-        cgiOutput += buffer;
+// ─── Static helpers ──────────────────────────────────────────────────────────
+
+bool CgiHandler::parseOutput(const String& raw, HttpResponse& response) {
+    size_t headerEnd    = raw.find("\r\n\r\n");
+    size_t headerEndLen = 4;
+    if (headerEnd == String::npos) {
+        headerEnd    = raw.find("\n\n");
+        headerEndLen = 2;
     }
-    close(childToParent[0]);
-    int status;
-    waitpid(pid, &status, 0);
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-        if (!parseCgiOutput(cgiOutput, response))
-            return Logger::error("Invalid CGI output");
-        response.addHeader(HEADER_CONTENT_LENGTH, typeToString<size_t>(response.getBody().size()));
-        return true;
+    if (headerEnd == String::npos)
+        return false;
+
+    String            headerPart = raw.substr(0, headerEnd);
+    String            bodyPart   = raw.substr(headerEnd + headerEndLen);
+    std::stringstream ss(headerPart);
+    String            line;
+    bool              statusSet = false;
+
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line[line.size() - 1] == '\r')
+            line.erase(line.size() - 1);
+        size_t colon = line.find(':');
+        if (colon == String::npos)
+            continue;
+        String key = trimSpaces(line.substr(0, colon));
+        String val = trimSpaces(line.substr(colon + 1));
+        if (toLowerWords(key) == "status") {
+            response.setStatus(atoi(val.c_str()), "OK");
+            statusSet = true;
+        } else {
+            response.addHeader(key, val);
+        }
     }
-    return Logger::error("CGI execution failed");
+    if (!statusSet)
+        response.setStatus(HTTP_OK, "OK");
+    response.setBody(bodyPart);
+    return true;
+}
+
+// ─── Private helpers ─────────────────────────────────────────────────────────
+
+VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
+    VectorString env;
+
+    const HttpRequest&    req = resultRouter.getRequest();
+    const LocationConfig* loc = resultRouter.getLocation();
+    if (!loc)
+        return env;
+
+    env.push_back("REQUEST_METHOD=" + req.getMethod());
+    env.push_back("QUERY_STRING=" + req.getQueryString());
+    env.push_back("CONTENT_LENGTH=" + typeToString<size_t>(req.getContentLength()));
+    if (!req.getContentType().empty())
+        env.push_back("CONTENT_TYPE=" + req.getContentType());
+    env.push_back("SCRIPT_NAME=" + loc->getPath());
+    env.push_back("SCRIPT_FILENAME=" + resultRouter.getPathRootUri());
+    env.push_back("PATH_INFO=" + resultRouter.getRemainingPath());
+    env.push_back("SERVER_NAME=" + req.getHost());
+    env.push_back("SERVER_PORT=" + typeToString<int>(req.getPort()));
+    env.push_back("GATEWAY_INTERFACE=" + String(CGI_INTERFACE));
+    env.push_back("SERVER_PROTOCOL=" + String(SERVER_PROTOCOL));
+
+    const MapString& headers = req.getHeaders();
+    for (MapString::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        String key = it->first;
+        for (size_t i = 0; i < key.size(); ++i)
+            if (key[i] == '-')
+                key[i] = '_';
+        env.push_back("HTTP_" + toUpperWords(key) + "=" + it->second);
+    }
+    return env;
+}
+
+std::vector<char*> CgiHandler::convertEnv(const VectorString& env) const {
+    std::vector<char*> result;
+    for (size_t i = 0; i < env.size(); ++i)
+        result.push_back(const_cast<char*>(env[i].c_str()));
+    result.push_back(NULL);
+    return result;
 }

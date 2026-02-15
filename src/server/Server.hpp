@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include "../config/ServerConfig.hpp"
+#include "../utils/Utils.hpp"
 
 class Server {
    private:
@@ -22,7 +23,6 @@ class Server {
     bool configureSocket();
     bool bindSocket();
     bool startListening();
-    bool createNonBlockingSocket(int fd);
 
    public:
     Server();

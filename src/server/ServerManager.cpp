@@ -119,21 +119,39 @@ bool ServerManager::run() {
             continue;
 
         for (size_t i = 0; i < pollManager.size() && eventCount > 0; i++) {
-            int fd = pollManager.getFd(i);
+            int  fd     = pollManager.getFd(i);
+            bool hasIn  = pollManager.hasEvent(i, POLLIN); // when client sends data or new connection on server socket
+            bool hasOut = pollManager.hasEvent(
+                i, POLLOUT); // when client socket is ready to send data (after response is set) or when CGI pipe is ready to write
+            bool hasHup = pollManager.hasEvent(i, POLLHUP);
+            bool hasErr = pollManager.hasEvent(i, POLLERR);
 
-            // Handle read events
-            if (pollManager.hasEvent(i, POLLIN)) {
+            if (!hasIn && !hasOut && !hasHup && !hasErr)
+                continue;
+            // CGI pipe events
+            if (isCgiPipe(fd)) {
+                if (hasOut)
+                    handleCgiWrite(fd);
+                if (hasIn || hasHup || hasErr)
+                    handleCgiRead(fd);
+                eventCount--;
+                continue;
+            }
+            // server or client socket events
+            if (hasIn) {
+                // server socket event (new connection)
                 if (isServerSocket(fd)) {
                     Server* server = findServerByFd(fd);
                     if (server)
                         acceptNewConnection(server);
+                    // client socket event (data received)
                 } else if (clients.find(fd) != clients.end()) {
                     handleClientRead(fd);
                 }
                 eventCount--;
             }
-            // Handle write events
-            if (pollManager.hasEvent(i, POLLOUT)) {
+            // client socket ready to send data
+            if (hasOut) {
                 if (clients.find(fd) != clients.end()) {
                     handleClientWrite(fd);
                 }
@@ -174,7 +192,9 @@ void ServerManager::handleClientRead(int clientFd) {
         closeClientConnection(clientFd);
         return;
     }
-    Logger::info("[INFO]: Data received from client");
+    // dont process request until the cgi done sending response for client to avoid mixing the response of cgi and the new request if client sent another request before reading the cgi response
+    if (client->getCgi().isActive())
+        return;
     Server* server = getValue(clientToServer, clientFd, (Server*)NULL);
     if (server)
         processRequest(client, server);
@@ -204,7 +224,17 @@ void ServerManager::checkTimeouts(int timeout) {
     std::vector<int> toClose;
 
     for (MapIntClientPtr::iterator it = clients.begin(); it != clients.end(); ++it) {
-        if (it->second->isTimedOut(timeout)) {
+        // timeout for CGI processes it have running for time if end time exceed the CGI_TIMEOUT
+        if (it->second->getCgi().isActive()) {
+            if (getDifferentTime(it->second->getCgi().getStartTime(), getCurrentTime()) > CGI_TIMEOUT) {
+                Logger::info("[INFO]: CGI timeout, killing process");
+                cleanupClientCgi(it->second);
+                ResponseBuilder builder(mimeTypes);
+                HttpResponse    response = builder.buildError(HTTP_GATEWAY_TIMEOUT, "CGI Timeout");
+                it->second->setSendData(response.toString());
+            }
+            // timeout for client connections
+        } else if (it->second->isTimedOut(timeout)) {
             toClose.push_back(it->first);
         }
     }
@@ -215,21 +245,6 @@ void ServerManager::checkTimeouts(int timeout) {
     }
 }
 
-size_t extractContentLength(std::string& buffer) {
-    String str   = "content-length:";
-    String lower = toLowerWords(buffer);
-    size_t pos   = lower.find(str);
-    if (pos == std::string::npos)
-        return 0;
-    size_t valueStart = pos + str.size();
-    size_t endContent = lower.find("\r\n", valueStart);
-    if (endContent == std::string::npos)
-        return 0;
-    String value = trimSpaces(buffer.substr(valueStart, endContent - valueStart));
-    if (value.empty())
-        return 0;
-    return stringToType<size_t>(value);
-}
 
 String checkMethod(std::string& buffer) {
     size_t pos       = buffer.find("\r\n");
@@ -245,64 +260,108 @@ String checkMethod(std::string& buffer) {
     return "";
 }
 
-void ServerManager::processRequest(Client* client, Server*) {
+void ServerManager::processRequest(Client* client, Server* server) {
     String buffer = client->getStoreReceiveData();
-    if(buffer.size() > MAX_HEADER_SIZE) {
+    if (buffer.size() > MAX_HEADER_SIZE) {
         ResponseBuilder builder;
         HttpResponse    response = builder.buildError(HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE, "Request Header Fields Too Large");
         client->setSendData(response.toString());
         client->clearStoreReceiveData();
         return;
     }
-    size_t headerEnd = buffer.find("\r\n\r\n");
+    size_t headerEnd    = buffer.find("\r\n\r\n");
     size_t headerEndLen = 4;
     if (headerEnd == String::npos) {
-        headerEnd = buffer.find("\n\n");
+        headerEnd    = buffer.find("\n\n");
         headerEndLen = 2;
     }
     if (headerEnd == String::npos)
         return;
 
-    size_t contentLength = extractContentLength(buffer);
-    size_t fullSize      = headerEnd + headerEndLen + contentLength;
-    size_t maxBodySize   = convertMaxBodySize(clientToServer[client->getFd()]->getConfig().getClientMaxBody());
-    if (buffer.size() > maxBodySize || contentLength > maxBodySize) {
-        ResponseBuilder builder;
-        HttpResponse    response = builder.buildError(HTTP_PAYLOAD_TOO_LARGE, "Payload Too Large");
-        client->setSendData(response.toString());
-        client->clearStoreReceiveData();
-        return;
-    }
-    if (buffer.size() < fullSize)
-        return;
+    String headerSection = buffer.substr(0, headerEnd);
+    bool   isChunked     = isChunkedTransferEncoding(headerSection);
 
-    String fullRequest = buffer.substr(0, fullSize);
+    String fullRequest;
+    if (isChunked) {
+        // For chunked encoding, look for the terminator "0\r\n\r\n"
+        String bodyPart   = buffer.substr(headerEnd + headerEndLen);
+        size_t terminator = bodyPart.find("0\r\n\r\n");
+        if (terminator == String::npos)
+            return; // not all chunks received yet
+
+        String chunkedBody = bodyPart.substr(0, terminator + 5); // include "0\r\n\r\n"
+        String decodedBody;
+        if (!decodeChunkedBody(chunkedBody, decodedBody)) {
+            ResponseBuilder builder;
+            HttpResponse    response = builder.buildError(HTTP_BAD_REQUEST, "Invalid chunked encoding");
+            client->setSendData(response.toString());
+            client->clearStoreReceiveData();
+            return;
+        }
+
+        size_t maxBodySize = convertMaxBodySize(clientToServer[client->getFd()]->getConfig().getClientMaxBody());
+        if (decodedBody.size() > maxBodySize) {
+            ResponseBuilder builder;
+            HttpResponse    response = builder.buildError(HTTP_PAYLOAD_TOO_LARGE, "Payload Too Large");
+            client->setSendData(response.toString());
+            client->clearStoreReceiveData();
+            return;
+        }
+
+        // Rebuild request: original headers (minus Transfer-Encoding) + Content-Length + decoded body
+        fullRequest = headerSection + "\r\nContent-Length: " + typeToString<size_t>(decodedBody.size()) + "\r\n\r\n" + decodedBody;
+    } else {
+        size_t contentLength = extractContentLength(headerSection);
+        size_t fullSize      = headerEnd + headerEndLen + contentLength;
+        size_t maxBodySize   = convertMaxBodySize(clientToServer[client->getFd()]->getConfig().getClientMaxBody());
+        if (contentLength > maxBodySize) {
+            ResponseBuilder builder;
+            HttpResponse    response = builder.buildError(HTTP_PAYLOAD_TOO_LARGE, "Payload Too Large");
+            client->setSendData(response.toString());
+            client->clearStoreReceiveData();
+            return;
+        }
+        if (buffer.size() < fullSize)
+            return;
+
+        fullRequest = buffer.substr(0, fullSize);
+    }
 
     HttpRequest request;
     if (!request.parse(fullRequest)) {
         ResponseBuilder builder;
         HttpResponse    response = builder.buildError(HTTP_BAD_REQUEST, "Bad Request");
         client->setSendData(response.toString());
-        buffer.erase(0, fullSize);
+        client->clearStoreReceiveData();
         return;
     }
 
-    Router router(serverConfigs, request);
+    Router      router(serverToConfigs[server->getFd()], request);
     RouteResult result = router.processRequest();
+
     ResponseBuilder builder(mimeTypes);
-    HttpResponse    response = builder.build(result);
+    // the cgi to handle cgi if is not cgi it send it as null value
+    HttpResponse response = builder.build(result, &client->getCgi());
+    if (client->getCgi().isActive()) {
+        registerCgiPipes(client);
+        client->clearStoreReceiveData();
+        return;
+    }
     client->setSendData(response.toString());
     client->clearStoreReceiveData();
 }
 
 void ServerManager::closeClientConnection(int clientFd) {
+    Client* c = getValue(clients, clientFd, (Client*)NULL);
+    if (c && c->getCgi().isActive())
+        cleanupClientCgi(c);
+
     for (size_t i = 0; i < pollManager.size(); i++) {
         if (pollManager.getFd(i) == clientFd) {
             pollManager.removeFd(i);
             break;
         }
     }
-    Client* c = getValue(clients, clientFd, (Client*)NULL);
     if (c) {
         c->closeConnection();
         delete c;
@@ -310,6 +369,82 @@ void ServerManager::closeClientConnection(int clientFd) {
     clients.erase(clientFd);
     clientToServer.erase(clientFd);
 }
+
+bool ServerManager::isCgiPipe(int fd) const {
+    return cgiPipeToClient.find(fd) != cgiPipeToClient.end();
+}
+
+void ServerManager::removeCgiPipe(int pipeFd) {
+    for (size_t i = 0; i < pollManager.size(); i++) {
+        if (pollManager.getFd(i) == pipeFd) {
+            pollManager.removeFd(i);
+            break;
+        }
+    }
+    cgiPipeToClient.erase(pipeFd);
+}
+
+void ServerManager::registerCgiPipes(Client* client) {
+    CgiProcess& cgi      = client->getCgi();
+    int         clientFd = client->getFd();
+    if (!cgi.isWriteDone()) {
+        pollManager.addFd(cgi.getWriteFd(), POLLOUT);
+        cgiPipeToClient[cgi.getWriteFd()] = clientFd;
+    } else {
+        close(cgi.getWriteFd());
+        cgi.setWriteFd(-1);
+    }
+    pollManager.addFd(cgi.getReadFd(), POLLIN);
+    cgiPipeToClient[cgi.getReadFd()] = clientFd;
+    Logger::info("[INFO]: CGI process started (pid " + typeToString<int>(cgi.getPid()) + ")");
+}
+
+void ServerManager::handleCgiWrite(int pipeFd) {
+    std::map<int, int>::iterator it = cgiPipeToClient.find(pipeFd);
+    if (it == cgiPipeToClient.end())
+        return;
+    Client* client = getValue(clients, it->second, (Client*)NULL);
+    if (!client || !client->getCgi().isActive()) {
+        removeCgiPipe(pipeFd);
+        return;
+    }
+    if (client->getCgi().writeBody(pipeFd)) {
+        removeCgiPipe(pipeFd);
+        close(pipeFd);
+        client->getCgi().setWriteFd(-1);
+    }
+}
+
+void ServerManager::handleCgiRead(int pipeFd) {
+    std::map<int, int>::iterator it = cgiPipeToClient.find(pipeFd);
+    if (it == cgiPipeToClient.end())
+        return;
+    Client* client = getValue(clients, it->second, (Client*)NULL);
+    if (!client || !client->getCgi().isActive()) {
+        removeCgiPipe(pipeFd);
+        return;
+    }
+    if (!client->getCgi().handleRead()) {
+        removeCgiPipe(pipeFd);
+        if (client->getCgi().getWriteFd() != -1)
+            removeCgiPipe(client->getCgi().getWriteFd());
+        ResponseBuilder builder(mimeTypes);
+        client->setSendData(builder.buildCgiResponse(client->getCgi()).toString());
+        Logger::info("[INFO]: CGI process finished");
+    }
+}
+
+void ServerManager::cleanupClientCgi(Client* client) {
+    if (!client->getCgi().isActive())
+        return;
+    if (client->getCgi().getWriteFd() != -1)
+        removeCgiPipe(client->getCgi().getWriteFd());
+    if (client->getCgi().getReadFd() != -1)
+        removeCgiPipe(client->getCgi().getReadFd());
+    client->getCgi().cleanup();
+}
+
+// ─── Server helpers ──────────────────────────────────────────────────────────
 
 Server* ServerManager::findServerByFd(int serverFd) const {
     for (size_t i = 0; i < servers.size(); i++) {
@@ -335,11 +470,14 @@ void ServerManager::shutdown() {
     running = false;
 
     for (MapIntClientPtr::iterator it = clients.begin(); it != clients.end(); ++it) {
+        if (it->second->getCgi().isActive())
+            cleanupClientCgi(it->second);
         it->second->closeConnection();
         delete it->second;
     }
     clients.clear();
     clientToServer.clear();
+    cgiPipeToClient.clear();
 
     for (size_t i = 0; i < servers.size(); i++) {
         servers[i]->stop();
