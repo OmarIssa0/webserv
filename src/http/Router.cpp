@@ -12,47 +12,43 @@ Router& Router::operator=(const Router& other) {
     return *this;
 }
 Router::~Router() {}
-
-// Resolve CGI script and PATH_INFO by walking the URI path components
 void Router::resolveCgiScriptAndPathInfo(const LocationConfig* loc, String& scriptPath, String& pathInfo) const {
+    scriptPath.clear();
     pathInfo.clear();
 
     if (!loc || !loc->hasCgi())
         return;
 
-    String root    = loc->getRoot();
-    String locPath = normalizePath(loc->getPath());
-    String uri     = normalizePath(_request.getUri());
-    String rest    = getUriRemainder(uri, locPath);
-    String basePath = joinPaths(root, locPath);
+    const String root    = loc->getRoot();
+    const String locPath = normalizePath(loc->getPath());
+    const String uri     = normalizePath(_request.getUri());
+    const String rest    = getUriRemainder(uri, locPath);
 
-    // Walk URI segments to find the CGI script file
     VectorString segments;
     splitByString(rest, segments, "/");
 
     String accumulated;
-    for (size_t i = 0; i < segments.size(); ++i) {
+
+    for (size_t i = 0; i < segments.size(); i++) {
         if (segments[i].empty())
             continue;
 
         accumulated += "/" + segments[i];
-        String candidate = joinPaths(basePath, accumulated);
+
+        String candidate = joinPaths(root, accumulated);
 
         if (fileExists(candidate) && getFileType(candidate) == SINGLEFILE && isCgiRequest(candidate, *loc)) {
             scriptPath = candidate;
-            // Everything after this segment is PATH_INFO
-            String remaining;
-            for (size_t j = i + 1; j < segments.size(); ++j) {
+            for (size_t j = i + 1; j < segments.size(); j++) {
                 if (!segments[j].empty())
-                    remaining += "/" + segments[j];
+                    pathInfo += "/" + segments[j];
             }
-            pathInfo = remaining;
             return;
         }
     }
 
-    // Fallback: try full resolved path
-    scriptPath = joinPaths(basePath, rest.empty() ? "/" : rest);
+    // fallback → full rest as script
+    scriptPath = joinPaths(root, rest);
 }
 
 // Main request processing

@@ -20,9 +20,9 @@ CgiHandler::~CgiHandler() {}
 bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response) const {
     return handle(resultRouter, response, VectorInt());
 }
-
 bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response, const VectorInt& openFds) const {
     (void)response;
+
     if (!_cgi)
         return false;
 
@@ -30,7 +30,9 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
     if (!loc || !loc->hasCgi())
         return false;
 
-    String extension = extractFileExtension(resultRouter.getPathRootUri());
+    String scriptPath = resultRouter.getPathRootUri(); // 🔥 FIX: lifetime safe
+    String extension  = extractFileExtension(scriptPath);
+
     if (extension.empty())
         return Logger::error("Failed to parse CGI extension");
 
@@ -38,11 +40,11 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
     int    parentToChild[2];
     int    childToParent[2];
     if (pipe(parentToChild) == -1)
-        return Logger::error("Failed to create pipe for CGI");
+        return Logger::error("CGI pipe parent->child failed");
     if (pipe(childToParent) == -1) {
         close(parentToChild[0]);
         close(parentToChild[1]);
-        return Logger::error("Failed to create pipe for CGI");
+        return Logger::error("CGI pipe child->parent failed");
     }
 
     pid_t pid = fork();
@@ -51,7 +53,7 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
         close(parentToChild[1]);
         close(childToParent[0]);
         close(childToParent[1]);
-        return Logger::error("Failed to fork CGI process");
+        return Logger::error("CGI fork failed");
     }
 
     if (pid == 0) {
@@ -61,25 +63,33 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
         dup2(childToParent[1], STDOUT_FILENO);
         close(parentToChild[0]);
         close(childToParent[1]);
-        for (size_t i = 0; i < openFds.size(); ++i) 
-                close(openFds[i]);
+        for (size_t i = 0; i < openFds.size(); i++)
+            close(openFds[i]);
 
-        String scriptDir = extractDirectoryFromPath(resultRouter.getPathRootUri());
-        if (!scriptDir.empty() && chdir(scriptDir.c_str()) != 0) {
-            perror("chdir failed");
-            _exit(1);
+        String scriptDir = extractDirectoryFromPath(scriptPath);
+        String fileName  = scriptPath.substr(scriptDir.size());
+        if (!scriptDir.empty()) {
+            if (chdir(scriptDir.c_str()) != 0) {
+                perror("CGI chdir failed");
+                _exit(1);
+            }
         }
 
-        VectorString       envStrings = buildEnv(resultRouter);
-        std::vector<char*> env        = convertEnv(envStrings);
+        VectorString envStrings = buildEnv(resultRouter);
+        VectorString envStorage(envStrings.begin(), envStrings.end());
+        std::vector<char*> envp;
+        for (size_t i = 0; i < envStorage.size(); i++)
+            envp.push_back(const_cast<char*>(envStorage[i].c_str()));
+        envp.push_back(NULL);
+        VectorString argvStorage;
+        argvStorage.push_back(interpreter);
+        argvStorage.push_back(fileName.substr(1));
+        std::vector<char*> argv;
+        for (size_t i = 0; i < argvStorage.size(); i++)
+            argv.push_back(const_cast<char*>(argvStorage[i].c_str()));
+        argv.push_back(NULL);
 
-        char* argv[3];
-        argv[0] = const_cast<char*>(interpreter.c_str());
-        argv[1] = const_cast<char*>(resultRouter.getPathRootUri().c_str());
-        argv[2] = NULL;
-
-        execve(argv[0], argv, &env[0]);
-        perror("execve failed");
+        execve(argv[0], &argv[0], &envp[0]);
         _exit(1);
     }
 
@@ -90,7 +100,6 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
     _cgi->init(pid, parentToChild[1], childToParent[0], resultRouter.getRequest().getBody());
     return true;
 }
-
 // ─── Static helpers ──────────────────────────────────────────────────────────
 
 bool CgiHandler::parseOutput(const String& raw, HttpResponse& response) {
@@ -162,12 +171,4 @@ VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
         env.push_back("HTTP_" + toUpperWords(key) + "=" + it->second);
     }
     return env;
-}
-
-std::vector<char*> CgiHandler::convertEnv(const VectorString& env) const {
-    std::vector<char*> result;
-    for (size_t i = 0; i < env.size(); ++i)
-        result.push_back(const_cast<char*>(env[i].c_str()));
-    result.push_back(NULL);
-    return result;
 }
