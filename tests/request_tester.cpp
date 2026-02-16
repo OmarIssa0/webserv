@@ -3,6 +3,8 @@
 #include <sstream>
 #include "../src/http/HttpRequest.hpp"
 
+#include <csignal>
+volatile sig_atomic_t g_running = 1;
 // Read entire file into a string
 String readFile(const String& filename) {
     std::ifstream file(filename.c_str(), std::ios::binary); // binary mode to preserve \r\n

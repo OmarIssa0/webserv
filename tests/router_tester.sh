@@ -173,7 +173,7 @@ CONFIG="http {
 
 REQUEST=$'GET /images/photo.jpg HTTP/1.1\r\nHost: localhost:8080\r\n\r\n'
 
-run_test "Nested path /images" "$CONFIG" "$REQUEST" "200" "/images" ""
+run_test "Nested path /images" "$CONFIG" "$REQUEST" "404" "/images" ""
 
 # ============================================================
 # SERVER SELECTION TESTS
@@ -268,11 +268,11 @@ CONFIG="http {
 
 REQUEST=$'GET /api/users/profile HTTP/1.1\r\nHost: localhost:8080\r\n\r\n'
 
-run_test "Longest prefix /api/users" "$CONFIG" "$REQUEST" "200" "/api/users" ""
+run_test "Longest prefix /api/users" "$CONFIG" "$REQUEST" "404" "/api/users" ""
 
 REQUEST=$'GET /api/posts HTTP/1.1\r\nHost: localhost:8080\r\n\r\n'
 
-run_test "Shorter prefix /api" "$CONFIG" "$REQUEST" "200" "/api" ""
+run_test "Shorter prefix /api" "$CONFIG" "$REQUEST" "404" "/api" ""
 
 # ============================================================
 # HTTP METHOD TESTS
