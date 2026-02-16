@@ -122,9 +122,9 @@ String generateGUID() {
 
 bool splitByChar(const String& line, String& key, String& value, char endChar, bool reverse) {
     size_t pos = reverse ? line.rfind(endChar) : line.find(endChar);
-        if (pos == String::npos || pos >= line.size()) {
-            return false;
-        }
+    if (pos == String::npos || pos >= line.size()) {
+        return false;
+    }
     String left;
     String right;
     left = line.substr(0, pos);
@@ -133,7 +133,7 @@ bool splitByChar(const String& line, String& key, String& value, char endChar, b
     else
         right = "";
 
-    key = left;
+    key   = left;
     value = right;
     return true;
 }

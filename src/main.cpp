@@ -19,7 +19,7 @@ void setupSignals() {
 
 int main(int ac, char** av) {
     String configFile = (ac > 1) ? av[1] : "webserv.conf";
-    if(!fileExists(av[1]) || fileExists("/config/mime.types")) {
+    if (!fileExists(configFile) || fileExists("/config/mime.types")) {
         std::cout << "Error: Configuration file '" << configFile << "' not found or 'mime.types' file is missing." << std::endl;
         return 1;
     }

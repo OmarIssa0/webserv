@@ -87,7 +87,6 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
     close(childToParent[1]);
     setNonBlocking(parentToChild[1]);
     setNonBlocking(childToParent[0]);
-
     _cgi->init(pid, parentToChild[1], childToParent[0], resultRouter.getRequest().getBody());
     return true;
 }
