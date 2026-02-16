@@ -1,7 +1,7 @@
 #include "MimeTypes.hpp"
 MimeTypes::MimeTypes() {
     VectorString lines;
-    if (!convertFileToLines("src/assets/mime.types", lines))
+    if (!convertFileToLines("src/config/mime.types", lines))
         mimeTypesMap["application/octet-stream"] = "";
     for (size_t i = 0; i < lines.size(); i++) {
         String       key;

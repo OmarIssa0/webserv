@@ -122,10 +122,19 @@ String generateGUID() {
 
 bool splitByChar(const String& line, String& key, String& value, char endChar, bool reverse) {
     size_t pos = reverse ? line.rfind(endChar) : line.find(endChar);
-    if (pos == String::npos)
-        return false;
-    key   = line.substr(0, pos);
-    value = line.substr(pos + 1);
+        if (pos == String::npos || pos >= line.size()) {
+            return false;
+        }
+    String left;
+    String right;
+    left = line.substr(0, pos);
+    if (pos + 1 <= line.size())
+        right = line.substr(pos + 1);
+    else
+        right = "";
+
+    key = left;
+    value = right;
     return true;
 }
 
@@ -170,10 +179,8 @@ String findValueIntInMap(const MapIntString& map, int key) {
 
 bool convertFileToLines(const String& file, VectorString& lines) {
     std::ifstream ff(file.c_str());
-    if (!ff.is_open()) {
-        std::cerr << "Error: Could not open file " << file << std::endl;
-        return false;
-    }
+    if (!ff.is_open())
+        return Logger::error("Failed to open file: " + file);
 
     String line;
     String current;

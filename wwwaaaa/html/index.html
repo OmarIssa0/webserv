@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Personal Page - Your Name</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="avatar">YN</div>
+            <div>
+                <h1>Your Name</h1>
+                <p class="lead">Brief tagline about you — e.g., "Full-stack developer, designer, and lifelong learner."
+                    Location • Open to work</p>
+                <!-- Upload File use html and uploader class -->
+                <form class="uploader" action="/upload" method="post" enctype="multipart/form-data">
+                    <input type="file" name="file" id="fileInput">
+                    <button type="submit">Upload File</button>
+                </form>
+            </div>
+        </header>
+
+        <div class="grid" style="margin-top:18px">
+            <main>
+                <section class="card section">
+                    <h2>About</h2>
+                    <p class="muted">Short summary: who you are, what you do, and what you care about. Replace this with
+                        a couple of sentences about your background and goals.</p>
+                </section>
+
+                <section class="card section">
+                    <h2>Experience</h2>
+                    <div>
+                        <strong>Software Engineer — Company A</strong>
+                        <div class="muted">Jan 2022 — Present</div>
+                        <ul>
+                            <li>Worked on web applications using HTML, CSS, JavaScript, and backend APIs.</li>
+                            <li>Improved performance and accessibility; collaborated with cross-functional teams.</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top:10px">
+                        <strong>Intern — Company B</strong>
+                        <div class="muted">Jun 2020 — Dec 2021</div>
+                        <ul>
+                            <li>Contributed to feature development and testing, learned professional workflows.</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="card section">
+                    <h2>Projects & Achievements</h2>
+                    <ul>
+                        <li>Personal portfolio website — responsive and accessible.</li>
+                        <li>Open-source contributions to small libraries and tools.</li>
+                        <li>Project X — short description of goals and impact.</li>
+                    </ul>
+                </section>
+
+                <section class="card section">
+                    <h2>Education</h2>
+                    <p class="muted">Degree, Institution — Year. Relevant courses: Algorithms, Web Development,
+                        Databases.</p>
+                </section>
+            </main>
+
+            <aside>
+                <div class="card section">
+                    <h2>Contact</h2>
+                    <div class="contact-item"><span class="muted">Email</span><span>you@example.com</span></div>
+                    <div class="contact-item"><span class="muted">Phone</span><span>+1 234 567 890</span></div>
+                    <div class="contact-item"><span class="muted">Location</span><span>City, Country</span></div>
+                    <div class="contact-item"><span class="muted">LinkedIn</span><span>linkedin.com/in/yourname</span>
+                    </div>
+                    <div class="contact-item"><span class="muted">GitHub</span><span>github.com/yourhandle</span></div>
+                </div>
+
+                <div class="card section">
+                    <h2>Skills</h2>
+                    <p class="muted">JavaScript, HTML, CSS, Node.js, Express, React, SQL, Git</p>
+                </div>
+
+                <div class="card section">
+                    <h2>Availability</h2>
+                    <p class="muted">Open to freelance and full-time opportunities. Available for interviews by
+                        appointment.</p>
+                </div>
+            </aside>
+        </div>
+
+        <footer>
+            Built with care — customize this page with your real information.
+        </footer>
+    </div>
+</body>
+
+</html>

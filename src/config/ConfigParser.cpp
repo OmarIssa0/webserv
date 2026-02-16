@@ -216,7 +216,8 @@ bool ConfigParser::parseLocationDirective(const String& l, LocationConfig& loc) 
 bool ConfigParser::parse() {
     String line;
     bool   httpFound = false;
-
+    if(lines.empty())
+        return Logger::error("Configuration file is empty");
     while (getNextLine(line)) {
         String       key;
         VectorString values;
