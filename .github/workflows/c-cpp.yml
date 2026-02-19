@@ -76,10 +76,9 @@ jobs:
           sleep 3 
 
 
-      - name: Debug curl GET
-        run: |
-          curl -v http://localhost:1234/
-      
+      - name: echo pwd
+        run: pwd
+        
       - name: Run tester
         run: printf "\n%.0s" {1..20} | ./tester http://localhost:1234
 
