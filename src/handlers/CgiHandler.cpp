@@ -29,8 +29,7 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
     const LocationConfig* loc = resultRouter.getLocation();
     if (!loc || !loc->hasCgi())
         return false;
-
-    String scriptPath = resultRouter.getPathRootUri(); // 🔥 FIX: lifetime safe
+    String scriptPath = resultRouter.getPathRootUri();
     String extension  = extractFileExtension(scriptPath);
 
     if (extension.empty())
@@ -57,14 +56,36 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
     }
 
     if (pid == 0) {
-        close(parentToChild[1]);
-        close(childToParent[0]);
-        dup2(parentToChild[0], STDIN_FILENO);
-        dup2(childToParent[1], STDOUT_FILENO);
-        close(parentToChild[0]);
-        close(childToParent[1]);
-        for (size_t i = 0; i < openFds.size(); i++)
-            close(openFds[i]);
+        if (close(parentToChild[1]) == -1) {
+            perror("CGI close parentToChild[1] failed");
+            _exit(1);
+        }
+        if (close(childToParent[0]) == -1) {
+            perror("CGI close childToParent[0] failed");
+            _exit(1);
+        }
+        if (dup2(parentToChild[0], STDIN_FILENO) == -1) {
+            perror("CGI dup2 parentToChild[0] failed");
+            _exit(1);
+        }
+        if (dup2(childToParent[1], STDOUT_FILENO) == -1) {
+            perror("CGI dup2 childToParent[1] failed");
+            _exit(1);
+        }
+        if (close(parentToChild[0]) == -1) {
+            perror("CGI close parentToChild[0] failed");
+            _exit(1);
+        }
+        if (close(childToParent[1]) == -1) {
+            perror("CGI close childToParent[1] failed");
+            _exit(1);
+        }
+        for (size_t i = 0; i < openFds.size(); i++) {
+            if (close(openFds[i]) == -1) {
+                perror("CGI close openFds failed");
+                _exit(1);
+            }
+        }
 
         String scriptDir = extractDirectoryFromPath(scriptPath);
         String fileName  = scriptPath.substr(scriptDir.size());
@@ -75,8 +96,8 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
             }
         }
 
-        VectorString envStrings = buildEnv(resultRouter);
-        VectorString envStorage(envStrings.begin(), envStrings.end());
+        VectorString       envStrings = buildEnv(resultRouter);
+        VectorString       envStorage(envStrings.begin(), envStrings.end());
         std::vector<char*> envp;
         for (size_t i = 0; i < envStorage.size(); i++)
             envp.push_back(const_cast<char*>(envStorage[i].c_str()));
@@ -140,9 +161,6 @@ bool CgiHandler::parseOutput(const String& raw, HttpResponse& response) {
     response.setBody(bodyPart);
     return true;
 }
-
-// ─── Private helpers ─────────────────────────────────────────────────────────
-
 VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
     VectorString env;
 
@@ -151,26 +169,61 @@ VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
     if (!loc)
         return env;
 
-    env.push_back("REQUEST_METHOD=" + req.getMethod());
-    env.push_back("QUERY_STRING=" + req.getQueryString());
-    env.push_back("CONTENT_LENGTH=" + typeToString<size_t>(req.getContentLength()));
-    if (!req.getContentType().empty())
-        env.push_back("CONTENT_TYPE=" + req.getContentType());
-    env.push_back("SCRIPT_NAME=" + loc->getPath());
-    env.push_back("SCRIPT_FILENAME=" + resultRouter.getPathRootUri());
-    env.push_back("PATH_INFO=" + resultRouter.getRemainingPath());
+    // --- Server info ---
+    env.push_back("SERVER_SOFTWARE=Webserv/1.0");
     env.push_back("SERVER_NAME=" + req.getHost());
     env.push_back("SERVER_PORT=" + typeToString<int>(req.getPort()));
-    env.push_back("GATEWAY_INTERFACE=" + String(CGI_INTERFACE));
-    env.push_back("SERVER_PROTOCOL=" + String(SERVER_PROTOCOL));
+    env.push_back("GATEWAY_INTERFACE=" + String(CGI_INTERFACE)); // CGI/1.1
+    env.push_back("SERVER_PROTOCOL=" + req.getHttpVersion());
 
+    // --- Request info ---
+    env.push_back("REQUEST_METHOD=" + req.getMethod());
+    env.push_back("QUERY_STRING=" + req.getQueryString());
+    env.push_back("REQUEST_URI=" + req.getUri());
+
+    // --- Script info ---
+    // NOTE: The cgi_test binary expects non-standard CGI environment:
+    // Both SCRIPT_NAME and PATH_INFO should be set to the full request URI
+    String requestUri     = req.getUri();
+    String scriptFilename = resultRouter.getPathRootUri(); // full path on disk
+
+    env.push_back("SCRIPT_NAME=" + requestUri);
+    env.push_back("SCRIPT_FILENAME=" + scriptFilename);
+    env.push_back("PATH_INFO=" + requestUri);
+
+    // --- POST info ---
+    if (!req.getContentType().empty())
+        env.push_back("CONTENT_TYPE=" + req.getContentType());
+    env.push_back("CONTENT_LENGTH=" + typeToString<size_t>(req.getContentLength()));
+
+    // --- Client info ---
+    env.push_back("REMOTE_ADDR=127.0.0.1");
+    env.push_back("REMOTE_HOST=localhost"); // optional
+    env.push_back("REDIRECT_STATUS=200");   // required by PHP and cgi_test
+
+    // --- HTTP headers ---
     const MapString& headers = req.getHeaders();
     for (MapString::const_iterator it = headers.begin(); it != headers.end(); ++it) {
         String key = it->first;
-        for (size_t i = 0; i < key.size(); ++i)
+        String val = it->second;
+
+        // sanitize header name
+        for (size_t i = 0; i < key.size(); i++) {
             if (key[i] == '-')
                 key[i] = '_';
-        env.push_back("HTTP_" + toUpperWords(key) + "=" + it->second);
+            else if (!std::isalnum(key[i]) && key[i] != '_')
+                key[i] = '_';
+        }
+
+        // sanitize header value
+        String sanitizedVal;
+        for (size_t i = 0; i < val.size(); i++) {
+            if (val[i] >= 0x20 && val[i] <= 0x7E)
+                sanitizedVal += val[i];
+        }
+
+        env.push_back("HTTP_" + toUpperWords(key) + "=" + sanitizedVal);
     }
+
     return env;
 }

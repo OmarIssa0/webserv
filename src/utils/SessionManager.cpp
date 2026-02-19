@@ -1,10 +1,8 @@
 #include "SessionManager.hpp"
 
-
 SessionManager::SessionManager() {}
 
-SessionManager::SessionManager(const SessionManager& other)
-    : sessions(other.sessions) {}
+SessionManager::SessionManager(const SessionManager& other) : sessions(other.sessions) {}
 
 SessionManager& SessionManager::operator=(const SessionManager& other) {
     if (this != &other)
@@ -14,42 +12,14 @@ SessionManager& SessionManager::operator=(const SessionManager& other) {
 
 SessionManager::~SessionManager() {}
 
-String SessionManager::generateSessionId() const {
-    static const char hex[] = "0123456789abcdef";
-    String id;
-    id.reserve(SESSION_ID_LENGTH);
-
-    std::ifstream urandom("/dev/urandom", std::ios::binary);
-    if (urandom.is_open()) {
-        for (int i = 0; i < SESSION_ID_LENGTH / 2; ++i) {
-            unsigned char byte;
-            urandom.read(reinterpret_cast<char*>(&byte), 1);
-            id += hex[(byte >> 4) & 0x0f];
-            id += hex[byte & 0x0f];
-        }
-        urandom.close();
-    } else {
-        static bool seeded = false;
-        if (!seeded) {
-            srand(static_cast<unsigned int>(time(NULL)) ^
-                  static_cast<unsigned int>(reinterpret_cast<size_t>(this)));
-            seeded = true;
-        }
-        for (int i = 0; i < SESSION_ID_LENGTH; ++i)
-            id += hex[rand() % 16];
-    }
-    return id;
-}
-
 bool SessionManager::isIdTaken(const String& id) const {
     return sessions.find(id) != sessions.end();
 }
 
-
 String SessionManager::createSession(const String& userId) {
     String id;
     do {
-        id = generateSessionId();
+        id = generateGUID();
     } while (isIdTaken(id));
 
     sessions[id] = SessionResult(id, userId);
@@ -68,7 +38,7 @@ SessionResult* SessionManager::getSession(const String& sessionId) {
     }
     it->second.touch();
     return &it->second;
-}   
+}
 
 bool SessionManager::removeSession(const String& sessionId) {
     SessionMap::iterator it = sessions.find(sessionId);
@@ -93,7 +63,6 @@ void SessionManager::cleanupExpiredSessions(int timeoutSeconds) {
     }
 }
 
-
 bool SessionManager::isValid(const String& sessionId) const {
     SessionMap::const_iterator it = sessions.find(sessionId);
     if (it == sessions.end())
@@ -101,15 +70,14 @@ bool SessionManager::isValid(const String& sessionId) const {
     return !it->second.isExpired(SESSION_TIMEOUT);
 }
 
-
 String SessionManager::regenerateId(const String& oldSessionId) {
     SessionMap::iterator it = sessions.find(oldSessionId);
     if (it == sessions.end())
         return "";
 
-    String  newId = generateSessionId();
+    String        newId = generateGUID();
     SessionResult copy  = it->second;
-    copy.sessionId = newId;
+    copy.sessionId      = newId;
     copy.touch();
     sessions.erase(it);
     sessions[newId] = copy;
@@ -117,7 +85,6 @@ String SessionManager::regenerateId(const String& oldSessionId) {
     Logger::info("[SESSION]: Regenerated " + oldSessionId.substr(0, 8) + "... -> " + newId.substr(0, 8) + "...");
     return newId;
 }
-
 
 String SessionManager::buildSetCookieHeader(const String& sessionId) {
     return String(SESSION_COOKIE_NAME) + "=" + sessionId + "; Path=/; HttpOnly";

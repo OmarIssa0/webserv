@@ -55,9 +55,18 @@ void RouteResult::setStatusCode(int code) {
 
 RouteResult& RouteResult::setRedirect(const String& url, int code) {
     isRedirect  = true;
-    // TODO
     redirectUrl = url;
     statusCode  = code;
+    if (code < 300 || code >= 400) {
+        Logger::error("Invalid redirect status code: " + typeToString(code));
+        statusCode = 301;
+    }
+    if (redirectUrl.empty()) {
+        Logger::error("Empty redirect URL");
+        isRedirect = false;
+        statusCode = HTTP_INTERNAL_SERVER_ERROR;
+        return *this;
+    }
     return *this;
 }
 

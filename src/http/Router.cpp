@@ -24,19 +24,20 @@ void Router::resolveCgiScriptAndPathInfo(const LocationConfig* loc, String& scri
     const String uri     = normalizePath(_request.getUri());
     const String rest    = getUriRemainder(uri, locPath);
 
+    String directFile = joinPaths(root, rest);
+    if (fileExists(directFile) && getFileType(directFile) == SINGLEFILE && isCgiRequest(directFile, *loc)) {
+        scriptPath = directFile;
+        return;
+    }
+
     VectorString segments;
     splitByString(rest, segments, "/");
-
     String accumulated;
-
     for (size_t i = 0; i < segments.size(); i++) {
         if (segments[i].empty())
             continue;
-
         accumulated += "/" + segments[i];
-
         String candidate = joinPaths(root, accumulated);
-
         if (fileExists(candidate) && getFileType(candidate) == SINGLEFILE && isCgiRequest(candidate, *loc)) {
             scriptPath = candidate;
             for (size_t j = i + 1; j < segments.size(); j++) {
@@ -46,9 +47,8 @@ void Router::resolveCgiScriptAndPathInfo(const LocationConfig* loc, String& scri
             return;
         }
     }
-
-    // fallback → full rest as script
-    scriptPath = joinPaths(root, rest);
+    // fallback
+    scriptPath = directFile;
 }
 
 // Main request processing
@@ -59,13 +59,13 @@ RouteResult Router::processRequest() {
     // 1. Find server
     const ServerConfig* srv = findServer();
     if (!srv)
-        return result.setCodeAndMessage(HTTP_BAD_REQUEST, "No matching server found");
+        return result.setCodeAndMessage(HTTP_BAD_REQUEST, getHttpStatusMessage(HTTP_BAD_REQUEST));
     result.setServer(srv);
 
     // 2. Find location
     const LocationConfig* loc = bestMatchLocation(srv->getLocations());
     if (!loc)
-        return result.setCodeAndMessage(HTTP_NOT_FOUND, "No matching location found");
+        return result.setCodeAndMessage(HTTP_NOT_FOUND, getHttpStatusMessage(HTTP_NOT_FOUND));
     result.setLocation(loc);
     result.setMatchedPath(loc->getPath());
 
@@ -73,29 +73,28 @@ RouteResult Router::processRequest() {
     if (loc->getIsRedirect())
         return result.setRedirect(loc->getRedirectValue(), loc->getRedirectCode());
 
-    // 4. Method check
-    if (!isKeyInVector(_request.getMethod(), loc->getAllowedMethods()))
-        return result.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, "Method Not Allowed");
-
-    // 5. Body size check
-    if (_request.getContentLength() > 0 && !checkBodySize(*loc))
-        return result.setCodeAndMessage(HTTP_PAYLOAD_TOO_LARGE, "Request Entity Too Large");
-
-    // 6. CGI handling — check BEFORE upload so POST to .py/.php goes to CGI
+    // 4. CGI handling — check BEFORE method/body limits per requirement
     if (loc->hasCgi()) {
-        // Walk the URI segments to find the CGI script and extract PATH_INFO
         String scriptPath, pathInfo;
         resolveCgiScriptAndPathInfo(loc, scriptPath, pathInfo);
         
-        if (fileExists(scriptPath) && isCgiRequest(scriptPath, *loc)) {
+        if (isCgiRequest(scriptPath, *loc)) {
             result.setPathRootUri(scriptPath);
             result.setRemainingPath(pathInfo);
-            result.setMatchedPath(loc->getPath());
             result.setCgiRequest(true);
+            result.setMatchedPath(loc->getPath());
             result.setStatusCode(HTTP_OK);
             return result;
         }
     }
+
+    // 5. Method check
+    if (!isKeyInVector(_request.getMethod(), loc->getAllowedMethods()))
+        return result.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
+
+    // 6. Body size check
+    if (_request.getContentLength() > 0 && !checkBodySize(*loc))
+        return result.setCodeAndMessage(HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE));
 
     // 7. Upload handling (POST/PUT to a location with upload_dir)
     if (!loc->getUploadDir().empty() && (_request.getMethod() == "POST" || _request.getMethod() == "PUT")) {
@@ -107,7 +106,7 @@ RouteResult Router::processRequest() {
     // 8. Resolve filesystem path for static/directory
     String fsPath = resolveFilesystemPath(loc);
     if (!fileExists(fsPath)) {
-        return result.setCodeAndMessage(HTTP_NOT_FOUND, "File not found");
+        return result.setCodeAndMessage(HTTP_NOT_FOUND, getHttpStatusMessage(HTTP_NOT_FOUND));
     }
     // If path is a directory, try to resolve index file
     if (getFileType(fsPath) == DIRECTORY) {
@@ -129,12 +128,12 @@ RouteResult Router::processRequest() {
                 result.setStatusCode(200);
                 return result;
             }
-            return result.setCodeAndMessage(HTTP_FORBIDDEN, "Forbidden");
+            return result.setCodeAndMessage(HTTP_NOT_FOUND, getHttpStatusMessage(HTTP_NOT_FOUND));
         }
     }
 
     if (!fileExists(fsPath))
-        return result.setCodeAndMessage(HTTP_NOT_FOUND, "File not found");
+        return result.setCodeAndMessage(HTTP_NOT_FOUND, getHttpStatusMessage(HTTP_NOT_FOUND));
     result.setPathRootUri(fsPath);
     result.setMatchedPath(loc->getPath());
 

@@ -136,11 +136,19 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
         String headerKey = toLowerWords(trimSpaces(key));
         String headerVal = trimSpaces(value);
 
-        // ! RFC 7230: Multiple headers with same name should append with comma
-        if (!hasNonEmptyValue(headers, headerKey))
+        if (headerKey == "content-length") {
+            if (hasNonEmptyValue(headers, headerKey)) {
+                errorCode = HTTP_BAD_REQUEST;
+                return Logger::error("Multiple Content-Length headers not allowed");
+            }
             headers[headerKey] = headerVal;
-        else
-            headers[headerKey] += "," + headerVal;
+        } else {
+            // RFC 7230: Multiple headers with same name should append with comma
+            if (!hasNonEmptyValue(headers, headerKey))
+                headers[headerKey] = headerVal;
+            else
+                headers[headerKey] += "," + headerVal;
+        }
         pos = lineEnd + 2;
     }
 
@@ -173,6 +181,10 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
             host = hostHeader;
         } else {
             port = stringToType<int>(portStr);
+            if (port < 1 || port > 65535) {
+                errorCode = HTTP_BAD_REQUEST;
+                return Logger::error("Invalid port number in Host header");
+            }
         }
     }
 

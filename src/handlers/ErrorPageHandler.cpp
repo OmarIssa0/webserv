@@ -29,7 +29,7 @@ std::string ErrorPageHandler::generateHtml(int code, const std::string& msg) con
 
 void ErrorPageHandler::handle(HttpResponse& response, const RouteResult& resultRouter, const MimeTypes& mimeTypes) const {
     int         code = resultRouter.getStatusCode() ? resultRouter.getStatusCode() : 500;
-    std::string msg  = resultRouter.getErrorMessage().empty() ? "Error" : resultRouter.getErrorMessage();
+    std::string msg  = resultRouter.getErrorMessage().empty() ? getHttpStatusMessage(code) : resultRouter.getErrorMessage();
 
     std::string body;
     // Check for custom error page in location first, then server

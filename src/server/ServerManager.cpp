@@ -29,7 +29,15 @@ ServerManager& ServerManager::operator=(const ServerManager& other) {
 }
 
 ServerManager::ServerManager(const VectorServerConfig& _configs)
-    : running(false), pollManager(), servers(), serverConfigs(_configs), clients(), clientToServer(), serverToConfigs(), mimeTypes(), sessionManager() {}
+    : running(false),
+      pollManager(),
+      servers(),
+      serverConfigs(_configs),
+      clients(),
+      clientToServer(),
+      serverToConfigs(),
+      mimeTypes(),
+      sessionManager() {}
 
 ServerManager::~ServerManager() {
     shutdown();
@@ -75,12 +83,42 @@ Server* ServerManager::createServerForListener(const String& listenerKey, const 
     Server* server = NULL;
     try {
         server = new Server(firstConfig, listenIndex);
-        if (!server->init())
-            throw std::runtime_error("Server init failed");
-    } catch (...) {
-        Logger::error("Failed to create server for listener " + listenerKey);
-        if (server)
+        if (!server->init()) {
+            Logger::error("Server init failed for listener " + listenerKey + ": " + String(strerror(errno)));
+            if (server) {
+                int fd = server->getFd();
+                if (fd >= 0) {
+                    if (close(fd) == -1) {
+                        Logger::error("Failed to close server fd: " + String(strerror(errno)));
+                    }
+                }
+                delete server;
+            }
+            return NULL;
+        }
+    } catch (const std::exception& e) {
+        Logger::error("Exception in createServerForListener: " + String(e.what()));
+        if (server) {
+            int fd = server->getFd();
+            if (fd >= 0) {
+                if (close(fd) == -1) {
+                    Logger::error("Failed to close server fd: " + String(strerror(errno)));
+                }
+            }
             delete server;
+        }
+        return NULL;
+    } catch (...) {
+        Logger::error("Unknown exception in createServerForListener");
+        if (server) {
+            int fd = server->getFd();
+            if (fd >= 0) {
+                if (close(fd) == -1) {
+                    Logger::error("Failed to close server fd: " + String(strerror(errno)));
+                }
+            }
+            delete server;
+        }
         return NULL;
     }
 
@@ -120,8 +158,7 @@ bool ServerManager::run() {
         int eventCount = pollManager.pollConnections(100);
         checkTimeouts(CLIENT_TIMEOUT);
 
-        if (getDifferentTime(lastSessionCleanup, getCurrentTime()) > SESSION_CLEANUP_INTERVAL)
-        {
+        if (getDifferentTime(lastSessionCleanup, getCurrentTime()) > SESSION_CLEANUP_INTERVAL) {
             sessionManager.cleanupExpiredSessions(SESSION_TIMEOUT);
             lastSessionCleanup = getCurrentTime();
         }
@@ -228,8 +265,8 @@ void ServerManager::handleClientWrite(int clientFd) {
     // If all data sent
     if (client->getStoreSendData().empty()) {
         if (client->isKeepAlive()) {
-             pollManager.addFd(clientFd, POLLIN);
-             return;
+            pollManager.addFd(clientFd, POLLIN);
+            return;
         }
         closeClientConnection(clientFd);
     }
@@ -260,7 +297,6 @@ void ServerManager::checkTimeouts(int timeout) {
         closeClientConnection(toClose[i]);
     }
 }
-
 
 String checkMethod(std::string& buffer) {
     size_t pos       = buffer.find("\r\n");
@@ -314,9 +350,22 @@ void ServerManager::processRequest(Client* client, Server* server) {
         return;
     }
 
-    String headerSection = buffer.substr(0, headerEnd);
-    bool   isChunked     = isChunkedTransferEncoding(headerSection);
-    size_t requestSize   = 0;
+    String headerSection      = buffer.substr(0, headerEnd);
+    bool   isChunked          = isChunkedTransferEncoding(headerSection);
+    size_t contentLengthCheck = extractContentLength(headerSection);
+
+    if (isChunked && contentLengthCheck > 0) {
+        ResponseBuilder builder;
+        HttpResponse    response = builder.buildError(HTTP_BAD_REQUEST, "Request has both Transfer-Encoding and Content-Length");
+        response.addHeader("Connection", "close");
+        client->setSendData(response.toString());
+        client->clearStoreReceiveData();
+        client->setKeepAlive(false);
+        pollManager.addFd(client->getFd(), POLLIN | POLLOUT);
+        return;
+    }
+
+    size_t requestSize = 0;
     String fullRequest;
 
     if (isChunked) {
@@ -340,8 +389,9 @@ void ServerManager::processRequest(Client* client, Server* server) {
             return;
         }
 
-        size_t maxBodySize = convertMaxBodySize(clientToServer[client->getFd()]->getConfig().getClientMaxBody());
-        if (decodedBody.size() > maxBodySize) {
+        String maxBodyStr  = clientToServer[client->getFd()]->getConfig().getClientMaxBody();
+        size_t maxBodySize = convertMaxBodySize(maxBodyStr);
+        if (!maxBodyStr.empty() && decodedBody.size() > maxBodySize) {
             ResponseBuilder builder;
             HttpResponse    response = builder.buildError(HTTP_PAYLOAD_TOO_LARGE, "Payload Too Large");
             response.addHeader("Connection", "close"); // Close on 413
@@ -356,14 +406,14 @@ void ServerManager::processRequest(Client* client, Server* server) {
     } else {
         size_t contentLength = extractContentLength(headerSection);
         requestSize          = headerEnd + headerEndLen + contentLength;
-        size_t maxBodySize   = convertMaxBodySize(clientToServer[client->getFd()]->getConfig().getClientMaxBody());
+        String maxBodyStr    = clientToServer[client->getFd()]->getConfig().getClientMaxBody();
+        size_t maxBodySize   = convertMaxBodySize(maxBodyStr);
 
-        if (contentLength > maxBodySize) {
+        if (!maxBodyStr.empty() && contentLength > maxBodySize) {
             ResponseBuilder builder;
             HttpResponse    response = builder.buildError(HTTP_PAYLOAD_TOO_LARGE, "Payload Too Large");
             response.addHeader("Connection", "close");
             client->setSendData(response.toString());
-            // If we have the full body, we can discard it. If not, we must close.
             if (dataSize >= requestSize)
                 client->removeReceivedData(requestSize);
             else
@@ -374,7 +424,7 @@ void ServerManager::processRequest(Client* client, Server* server) {
         }
 
         if (dataSize < requestSize)
-            return; // Wait for more body
+            return;
 
         fullRequest = buffer.substr(0, requestSize);
     }
@@ -396,7 +446,7 @@ void ServerManager::processRequest(Client* client, Server* server) {
     request.setPort(server->getPort());
 
     // 7. Determine Keep-Alive
-    bool keepAlive = (request.getHttpVersion() == "HTTP/1.1");
+    bool   keepAlive  = (request.getHttpVersion() == "HTTP/1.1");
     String connHeader = request.getHeader("connection");
     if (!connHeader.empty()) {
         String connLower = toLowerWords(connHeader);
@@ -406,17 +456,16 @@ void ServerManager::processRequest(Client* client, Server* server) {
             keepAlive = true;
     }
     client->setKeepAlive(keepAlive);
- 
-     String   sessionId = request.getCookie(SESSION_COOKIE_NAME);
+
+    String         sessionId = request.getCookie(SESSION_COOKIE_NAME);
     SessionResult* session   = NULL;
     if (!sessionId.empty())
         session = sessionManager.getSession(sessionId);
 
     String newSessionId;
-    if (!session && request.getMethod() == "POST" && !request.getBody().empty())
-    {
-        String body = request.getBody();
-        String username;
+    if (!session && request.getMethod() == "POST" && !request.getBody().empty()) {
+        String       body = request.getBody();
+        String       username;
         VectorString pairs;
         splitByString(body, pairs, "&");
         for (size_t i = 0; i < pairs.size(); ++i) {
@@ -426,16 +475,16 @@ void ServerManager::processRequest(Client* client, Server* server) {
         }
         if (!username.empty()) {
             newSessionId = sessionManager.createSession(username);
-            session = sessionManager.getSession(newSessionId);
+            session      = sessionManager.getSession(newSessionId);
         }
     }
 
     Router      router(serverToConfigs[server->getFd()], request);
-    RouteResult result = router.processRequest();
-    VectorInt openFds = pollManager.getFds();
+    RouteResult result  = router.processRequest();
+    VectorInt   openFds = pollManager.getFds();
 
     ResponseBuilder builder(mimeTypes);
-    HttpResponse response = builder.build(result, &client->getCgi(), openFds);
+    HttpResponse    response = builder.build(result, &client->getCgi(), openFds);
 
     if (!newSessionId.empty())
         response.addSetCookie(SessionManager::buildSetCookieHeader(newSessionId));

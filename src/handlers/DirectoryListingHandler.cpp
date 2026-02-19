@@ -15,8 +15,13 @@ bool DirectoryListingHandler::readDirectoryEntries(const String& path, const Str
     if (!dir)
         return Logger::error("Failed to open directory: " + path);
     struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL)
+    while ((entry = readdir(dir)) != NULL) {
+        String filename = entry->d_name;
+        if (filename[0] == '.')
+            continue;
+
         entries.push_back(FileHandler(entry, path, uri));
+    }
     if (closedir(dir) == -1)
         return Logger::error("Failed to close directory: " + path);
 

@@ -62,7 +62,7 @@
 
 // ! TIMEOUTS
 #define CLIENT_TIMEOUT 60
-#define CGI_TIMEOUT 10
+#define CGI_TIMEOUT 60
 
 // ! DEFAULTS
 #define DEFAULT_PORT 80

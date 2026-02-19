@@ -59,6 +59,7 @@ bool   parseKeyValue(const String& line, String& key, VectorString& values);
 size_t convertMaxBodySize(const String& maxBody);
 String formatSize(double size);
 bool   setNonBlocking(int fd);
+String getHttpStatusMessage(int code);
 
 // --- Header/Body Parsing ---
 String extractFilenameFromHeader(const String& contentDisposition);

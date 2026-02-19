@@ -27,8 +27,6 @@ class SessionManager
 
    private:
     SessionMap sessions;
-
-    String generateSessionId() const;
     bool   isIdTaken(const String& id) const;
 };
 

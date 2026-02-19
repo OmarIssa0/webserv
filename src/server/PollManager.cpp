@@ -37,11 +37,7 @@ void PollManager::addFd(int fd, int events) {
 void PollManager::removeFd(size_t index) {
     if (index >= fds.size())
         return;
-
-    if (index != fds.size() - 1) {
-        fds[index] = fds[fds.size() - 1];
-    }
-    fds.pop_back();
+    fds.erase(fds.begin() + index); 
 }
 
 int PollManager::pollConnections(int timeout) {

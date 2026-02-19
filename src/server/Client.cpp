@@ -28,6 +28,11 @@ Client::Client(int fd) : client_fd(fd), _keepAlive(false) {
 
 Client::~Client() {
     closeConnection();
+    if (_cgi.isActive()) {
+        _cgi.cleanup();
+    }
+    storeReceiveData.clear();
+    storeSendData.clear();
 }
 
 ssize_t Client::receiveData() {
