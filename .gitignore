@@ -1,6 +1,2 @@
 /obj/
 .vscode/
-webserv
-request_tester
-router_tester
-config_tester
