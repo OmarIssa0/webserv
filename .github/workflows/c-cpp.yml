@@ -76,7 +76,7 @@ jobs:
           sleep 3 
 
 
-      - name: Debug curl GET /
+      - name: Debug curl GET
         run: |
           curl -v http://localhost:1234/
       
