@@ -78,6 +78,8 @@ jobs:
 
       - name: echo pwd
         run: pwd
+      - name: echo ls
+        run: ls -la
         
       - name: Run tester
         run: printf "\n%.0s" {1..20} | ./tester http://localhost:1234
