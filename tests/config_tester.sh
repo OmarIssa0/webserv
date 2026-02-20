@@ -1378,9 +1378,9 @@ run_tests() {
     # ----------------------------------------------------------
     print_subheader "FAILURE Cases (Expected to FAIL)"
 
-    test_failure "Empty configuration file" "$TEST_DIR/20_empty.conf" "[ERROR]: Configuration file is empty"
+    test_failure "Empty configuration file" "$TEST_DIR/20_empty.conf" "[ERROR]: No server defined"
     test_failure "No server block in http" "$TEST_DIR/21_no_server.conf" "No server defined"
-    test_failure "Multiple http blocks" "$TEST_DIR/22_multiple_http.conf" "[ERROR]: Only one http block allowed"
+    test_failure "Multiple http blocks" "$TEST_DIR/22_multiple_http.conf" "[ERROR]: Config error at line 10: Duplicate http block"
     test_failure "Missing listen directive" "$TEST_DIR/23_no_listen.conf" "[ERROR]: Server missing listen directive"
     test_failure "Multiple listen entries (localhost and 127.0.0.1 treated independently)" "$TEST_DIR/24_dup_listen.conf"
     test_failure "Multiple values in single listen directive" "$TEST_DIR/24b_multi_value_listen.conf" "[ERROR]: listen takes exactly one value"
@@ -1390,18 +1390,18 @@ run_tests() {
     test_failure "Invalid listen format (no colon)" "$TEST_DIR/25_invalid_listen.conf" "invalid listen format"
     test_failure "Negative port number" "$TEST_DIR/26_negative_port.conf" "invalid port"
     test_failure "Port number too high (>65535)" "$TEST_DIR/27_port_too_high.conf" "invalid port"
-    test_failure "No location block" "$TEST_DIR/28_no_location.conf" "[ERROR]: At least one location is required"
+    test_failure "No location block" "$TEST_DIR/28_no_location.conf" "[ERROR]: Server must have at least one location"
     test_failure "Duplicate root in server" "$TEST_DIR/29_dup_root_server.conf" "duplicate root"
     test_failure "Duplicate server_name" "$TEST_DIR/30_dup_server_name.conf" "duplicate server_name"
     test_failure "Duplicate index in server" "$TEST_DIR/31_dup_index_server.conf" "duplicate index"
     test_failure "Duplicate client_max_body_size in server" "$TEST_DIR/32_dup_body_server.conf" "[ERROR]: Duplicate client_max_body_size"
-    test_failure "Duplicate client_max_body_size in http" "$TEST_DIR/33_dup_body_http.conf" "[ERROR]: Duplicate client_max_body_size"
-    test_failure "Unknown http directive" "$TEST_DIR/34_unknown_http.conf" "Unknown http directive"
+    test_failure "Duplicate client_max_body_size in http" "$TEST_DIR/33_dup_body_http.conf" "[ERROR]: Config error at line 3: Duplicate client_max_body_size in http block"
+    test_failure "Unknown http directive" "$TEST_DIR/34_unknown_http.conf" "[ERROR]: Config error at line 2: Invalid directive in http block: 'unknown_directive'"
     test_failure "Unknown server directive" "$TEST_DIR/35_unknown_server.conf" "Unknown server directive"
     test_failure "Unknown location directive" "$TEST_DIR/36_unknown_location.conf" "Unknown location directive"
     test_failure "Location without path" "$TEST_DIR/37_location_no_path.conf" ""
-    test_failure "Location path doesn't start with /" "$TEST_DIR/38_location_invalid_path.conf" "[ERROR]: Location path must start with '/'"
-    test_failure "Duplicate location path" "$TEST_DIR/39_dup_location.conf" "[ERROR]: Duplicate location path: /"
+    test_failure "Location path doesn't start with /" "$TEST_DIR/38_location_invalid_path.conf" "[ERROR]: Config error at line 5: Location path must start with '/'"
+    test_failure "Duplicate location path" "$TEST_DIR/39_dup_location.conf" "[ERROR]: Config error at line 9: Duplicate location path: /"
     test_failure "Duplicate root in location" "$TEST_DIR/40_dup_root_location.conf" "duplicate root"
     test_failure "Duplicate autoindex in location" "$TEST_DIR/41_dup_autoindex.conf" "duplicate autoindex"
     test_failure "Invalid autoindex value" "$TEST_DIR/42_invalid_autoindex.conf" "invalid autoindex value"
@@ -1413,15 +1413,15 @@ run_tests() {
     test_failure "Missing closing brace (server)" "$TEST_DIR/47_missing_brace_server.conf" ""
     test_failure "Missing closing brace (location)" "$TEST_DIR/48_missing_brace_location.conf" ""
     test_failure "No root defined anywhere" "$TEST_DIR/49_no_root.conf" "[ERROR]: Location has no root and server has no root"
-    test_failure "Invalid top-level directive" "$TEST_DIR/50_invalid_toplevel.conf" "Invalid directive"
-    test_failure "Server inside location" "$TEST_DIR/51_server_in_location.conf" "Unknown location directive"
+    test_failure "Invalid top-level directive" "$TEST_DIR/50_invalid_toplevel.conf" "Config error at line 1: Unexpected top-level token 'invalid_toplevel'"
+    test_failure "Server inside location" "$TEST_DIR/51_server_in_location.conf" "[ERROR]: Config error at line 6: Expected value or ';'"
     test_failure "Non-existent config file" "$TEST_DIR/nonexistent.conf" ""
     test_failure "Port zero" "$TEST_DIR/53_port_zero.conf" "invalid port"
     test_failure "Port not a number" "$TEST_DIR/54_port_nan.conf" "invalid port"
     test_failure "Empty server block" "$TEST_DIR/55_empty_server.conf" "[ERROR]: Server missing listen directive"
-    test_failure "Nested http blocks" "$TEST_DIR/56_nested_http.conf" "Unknown http directive"
-    test_failure "Location inside http" "$TEST_DIR/57_location_in_http.conf" "Unknown http directive"
-    test_failure "Extra closing brace" "$TEST_DIR/58_extra_brace.conf" "Invalid directive"
+    test_failure "Nested http blocks" "$TEST_DIR/56_nested_http.conf" "[ERROR]: Config error at line 2: Invalid directive in http block: 'http'"
+    test_failure "Location inside http" "$TEST_DIR/57_location_in_http.conf" "[ERROR]: Config error at line 2: Invalid directive in http block: 'location'"
+    test_failure "Extra closing brace" "$TEST_DIR/58_extra_brace.conf" "[ERROR]: Config error at line 10: Unexpected top-level token '}'"
 
     # ----------------------------------------------------------
     # EDGE CASES
@@ -1469,8 +1469,8 @@ run_tests() {
     test_failure "Semicolon in value" "$TEST_DIR/80_semicolon_value.conf" ""
     
     # Whitespace/comments only = no server
-    test_failure "Whitespace only file" "$TEST_DIR/81_whitespace_only.conf" "[ERROR]: Configuration file is empty"
-    test_failure "Comments only file" "$TEST_DIR/82_comments_only.conf" "[ERROR]: Configuration file is empty"
+    test_failure "Whitespace only file" "$TEST_DIR/81_whitespace_only.conf" "[ERROR]: No server defined"
+    test_failure "Comments only file" "$TEST_DIR/82_comments_only.conf" "[ERROR]: No server defined"
     
     # Empty root value should fail
     test_failure "Directive without value" "$TEST_DIR/83_no_value.conf" ""
