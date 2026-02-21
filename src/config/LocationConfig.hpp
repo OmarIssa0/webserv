@@ -29,7 +29,6 @@ class LocationConfig {
     void setClientMaxBody(const String& c);
     bool setClientMaxBody(const VectorString& c);
 
-    void             addAllowedMethod(const String& m);
     bool             setAllowedMethods(const VectorString& m);
     String           getPath() const;
     String           getRoot() const;
@@ -60,9 +59,8 @@ class LocationConfig {
     VectorString allowedMethods; // default: GET
     MapIntString errorPage;      // maps error code to error page path
     bool         hasRedirect;
-    int          redirectCode;     
+    int          redirectCode;
     String       redirectValue;
-
 };
 
 #endif

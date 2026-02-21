@@ -32,7 +32,7 @@ class ServerConfig {
     String                      getInterface(size_t index = 0) const;
     const VectorListenAddress&  getListenAddresses() const;
     bool                        hasPort(int port) const;
-    VectorLocationConfig&       getLocations(); // to set parameter in locations from server
+    VectorLocationConfig&       getLocations();
     const VectorLocationConfig& getLocations() const;
     String                      getServerName(size_t index = 0) const;
     const VectorString&         getServerNames() const;
@@ -43,11 +43,12 @@ class ServerConfig {
     const MapIntString&         getErrorPages() const;
     String                      getErrorPage(int code) const;
     bool                        hasErrorPage(int code) const;
+    bool                        listenExists(const ListenAddress& addr) const;
 
    private:
     // required server parameters
     VectorListenAddress  listenAddresses;
-    VectorLocationConfig locations; // it least one location
+    VectorLocationConfig locations;
 
     // optional server parameters
     VectorString serverNames;       // default: empty, can have multiple names

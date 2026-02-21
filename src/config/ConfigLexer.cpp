@@ -1,7 +1,6 @@
 #include "ConfigLexer.hpp"
 
-ConfigLexer::ConfigLexer(const std::string& filename)
-    : _line(1) {
+ConfigLexer::ConfigLexer(const std::string& filename) : _line(1) {
     _file.open(filename.c_str());
     if (!_file.is_open()) {
         throw std::runtime_error("Cannot open configuration file: " + filename);
@@ -38,7 +37,8 @@ void ConfigLexer::skipWhitespaceAndComments() {
             continue;
         }
         if (c == '#') {
-            while (!eof() && get() != '\n') {}
+            while (!eof() && get() != '\n')
+                ;
             ++_line;
             continue;
         }
@@ -47,13 +47,15 @@ void ConfigLexer::skipWhitespaceAndComments() {
 }
 
 ConfigToken ConfigLexer::readQuotedString() {
-    char quote = get(); 
+    char        quote = get();
     std::string value;
-    int startLine = _line;
+    int         startLine = _line;
     while (!eof()) {
         char c = get();
-        if (c == quote) break;
-        if (c == '\n') ++_line;
+        if (c == quote)
+            break;
+        if (c == '\n')
+            ++_line;
         value += c;
     }
     return ConfigToken(TOKEN_STRING, value, startLine);
@@ -61,11 +63,10 @@ ConfigToken ConfigLexer::readQuotedString() {
 
 ConfigToken ConfigLexer::readWord() {
     std::string word;
-    int startLine = _line;
+    int         startLine = _line;
     while (!eof()) {
         char c = peek();
-        if (std::isspace(static_cast<unsigned char>(c)) ||
-            c == '{' || c == '}' || c == ';' || c == '#')
+        if (c == ' ' || c == '\t' || c == '\r' || c == '{' || c == '}' || c == ';' || c == '#')
             break;
         word += get();
     }
@@ -74,11 +75,22 @@ ConfigToken ConfigLexer::readWord() {
 
 ConfigToken ConfigLexer::nextToken() {
     skipWhitespaceAndComments();
-    if (eof()) return ConfigToken(TOKEN_EOF, "", _line);
+    if (eof())
+        return ConfigToken(TOKEN_EOF, "", _line);
     char c = peek();
-    if (c == '{') { get(); return ConfigToken(TOKEN_LBRACE, "{", _line); }
-    if (c == '}') { get(); return ConfigToken(TOKEN_RBRACE, "}", _line); }
-    if (c == ';') { get(); return ConfigToken(TOKEN_SEMICOLON, ";", _line); }
-    if (c == '"' || c == '\'') return readQuotedString();
+    if (c == '{') {
+        get();
+        return ConfigToken(TOKEN_LBRACE, "{", _line);
+    }
+    if (c == '}') {
+        get();
+        return ConfigToken(TOKEN_RBRACE, "}", _line);
+    }
+    if (c == ';') {
+        get();
+        return ConfigToken(TOKEN_SEMICOLON, ";", _line);
+    }
+    if (c == '"' || c == '\'')
+        return readQuotedString();
     return readWord();
 }

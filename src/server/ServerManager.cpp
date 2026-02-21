@@ -48,7 +48,6 @@ bool ServerManager::initialize() {
         return Logger::error("No server configurations provided");
     if (!initializeServers(serverConfigs) || servers.empty())
         return Logger::error("Failed to initialize servers");
-    Logger::info("[INFO]: All servers initialized successfully");
     running = true;
     return Logger::info("[INFO]: ServerManager initialized");
 }
@@ -84,14 +83,12 @@ Server* ServerManager::createServerForListener(const String& listenerKey, const 
     try {
         server = new Server(firstConfig, listenIndex);
         if (!server->init()) {
-            Logger::error("Server init failed for listener " + listenerKey + ": " + String(strerror(errno)));
+            Logger::error("Server init failed for listener " + listenerKey + ": " + "Address already in use or insufficient permissions");
             if (server) {
                 int fd = server->getFd();
-                if (fd >= 0) {
-                    if (close(fd) == -1) {
-                        Logger::error("Failed to close server fd: " + String(strerror(errno)));
-                    }
-                }
+                if (fd >= 0)
+                    if (close(fd) == -1)
+                        Logger::error("Failed to close server fd: the fd might not have been created or already closed");
                 delete server;
             }
             return NULL;
@@ -100,11 +97,9 @@ Server* ServerManager::createServerForListener(const String& listenerKey, const 
         Logger::error("Exception in createServerForListener: " + String(e.what()));
         if (server) {
             int fd = server->getFd();
-            if (fd >= 0) {
-                if (close(fd) == -1) {
-                    Logger::error("Failed to close server fd: " + String(strerror(errno)));
-                }
-            }
+            if (fd >= 0)
+                if (close(fd) == -1)
+                    Logger::error("Failed to close server fd: the fd might not have been created or already closed");
             delete server;
         }
         return NULL;
@@ -114,7 +109,7 @@ Server* ServerManager::createServerForListener(const String& listenerKey, const 
             int fd = server->getFd();
             if (fd >= 0) {
                 if (close(fd) == -1) {
-                    Logger::error("Failed to close server fd: " + String(strerror(errno)));
+                    Logger::error("Failed to close server fd: the fd might not have been created or already closed");
                 }
             }
             delete server;
@@ -276,7 +271,6 @@ void ServerManager::checkTimeouts(int timeout) {
     std::vector<int> toClose;
 
     for (MapIntClientPtr::iterator it = clients.begin(); it != clients.end(); ++it) {
-        // timeout for CGI processes it have running for time if end time exceed the CGI_TIMEOUT
         if (it->second->getCgi().isActive()) {
             if (getDifferentTime(it->second->getCgi().getStartTime(), getCurrentTime()) > CGI_TIMEOUT) {
                 Logger::info("[INFO]: CGI timeout, killing process");

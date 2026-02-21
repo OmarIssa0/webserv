@@ -1483,12 +1483,7 @@ run_tests() {
     echo -e "${YELLOW}  >>> Validation tests (should reject invalid input) <<<${NC}"
     
     # Empty server_name with quotes - depends on how parser handles it
-    output=$($WEBSERV "$TEST_DIR/92_empty_values.conf" 2>&1)
-    if [ $? -eq 0 ]; then
-        echo -e "${BLUE}ℹ️ INFO${NC} Empty quoted server_name: ACCEPTED"
-    else
-        echo -e "${BLUE}ℹ️ INFO${NC} Empty quoted server_name: REJECTED"
-    fi
+    test_success "Empty server_name with quotes" "$TEST_DIR/92_empty_values.conf"
     TOTAL=$((TOTAL + 1))
     PASS=$((PASS + 1))
     

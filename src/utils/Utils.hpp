@@ -69,7 +69,7 @@ bool   isChunkedTransferEncoding(const String& headers);
 bool   decodeChunkedBody(const String& chunkedBody, String& decodedBody);
 bool   getHeaderValue(const String& headers, const String& headerName, String& outValue);
 size_t extractContentLength(const String& headers);
-
+bool   requireSingleValue(const VectorString& v, const String& directive);
 // --- Templates ---
 
 // Check if key exists in map
@@ -104,12 +104,14 @@ String typeToString(type _value) {
 }
 
 // Convert String to any streamable type
-template <typename type>
-type stringToType(const String& str) {
+template <typename T>
+bool stringToType(const String& str, T& out) {
     std::stringstream ss(str);
-    type              value;
-    ss >> value;
-    return value;
+    ss >> out;
+    if (ss.fail() || !ss.eof())
+        return false;
+
+    return true;
 }
 
 // Check if key exists in std::map (Redundant with keyExists but kept for compatibility)

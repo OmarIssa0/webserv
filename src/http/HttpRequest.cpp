@@ -179,15 +179,12 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
     if (!hostHeader.empty()) {
         if (!splitByChar(hostHeader, host, portStr, COLON)) {
             host = hostHeader;
-        } else {
-            port = stringToType<int>(portStr);
-            if (port < 1 || port > 65535) {
-                errorCode = HTTP_BAD_REQUEST;
-                return Logger::error("Invalid port number in Host header");
-            }
+        } else if (!stringToType<int>(portStr, port) || port < 1 || port > 65535) {
+            errorCode = HTTP_BAD_REQUEST;
+            return Logger::error("Invalid port number in Host header");
         }
     }
-    
+
     std::cout << "Parsed Request: " << method << " " << uri << " " << httpVersion << std::endl;
     return true;
 }

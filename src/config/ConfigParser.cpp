@@ -26,6 +26,7 @@ ConfigParser::ConfigParser(const String& filename) : _lexer(filename), _haveHttp
 ConfigParser::~ConfigParser() {}
 
 void ConfigParser::nextToken() {
+    //_current is (type, value, line)
     _current = _lexer.nextToken();
 }
 
@@ -203,7 +204,7 @@ bool ConfigParser::validate() {
                 loc.setRoot(srv.getRoot());
             }
             if (loc.getAllowedMethods().empty())
-                loc.addAllowedMethod("GET");
+                loc.setAllowedMethods(VectorString(1, "GET"));
             if (loc.getClientMaxBody().empty())
                 loc.setClientMaxBody(srv.getClientMaxBody());
             if (loc.getIndexes().empty()) {

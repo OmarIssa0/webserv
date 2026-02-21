@@ -792,12 +792,16 @@ bool decodeChunkedBody(const String& chunkedBody, String& decodedBody) {
 }
 
 size_t extractContentLength(const String& headers) {
+    size_t content_length;
+    // TODO make the content length if invalid to be -1 and handle it in the caller instead of returning 0 which is a valid content length
     String val;
     if (!getHeaderValue(headers, "content-length", val))
         return 0;
-    return stringToType<size_t>(val);
+    if (!stringToType<size_t>(val, content_length))
+        return 0;
+    return content_length;
 }
-// fuck%20me%20
+
 String urlDecode(const String& input) {
     String result;
     result.reserve(input.size());
@@ -815,4 +819,10 @@ String urlDecode(const String& input) {
         }
     }
     return result;
+}
+
+bool requireSingleValue(const VectorString& v, const String& directive) {
+    if (v.size() != 1)
+        return Logger::error(directive + " takes exactly one value");
+    return true;
 }
