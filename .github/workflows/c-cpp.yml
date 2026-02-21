@@ -70,7 +70,7 @@ jobs:
 
       - name: Start webserv
         run: |
-          ./webserv default.conf 
+          ./webserv default.conf &
           echo $! > server.pid
 
       - name: Wait for server
