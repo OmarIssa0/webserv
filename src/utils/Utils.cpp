@@ -249,31 +249,8 @@ bool fileExists(const String& path) {
 
 struct stat getFileStat(const String& path) {
     struct stat st;
-    String      actualPath = path;
-
-    // Try path as is
-    if (stat(actualPath.c_str(), &st) == 0)
+    if (stat(path.c_str(), &st) == 0)
         return st;
-
-    // Remove leading ./ if present
-    if (actualPath.size() > 2 && actualPath[0] == DOT && actualPath[1] == SLASH) {
-        actualPath = actualPath.substr(2);
-        if (stat(actualPath.c_str(), &st) == 0)
-            return st;
-    }
-
-    // Handle leading slash or ./ prefixing
-    if (!actualPath.empty() && actualPath[0] == SLASH) {
-        // Try adding . at start
-        String dotPrefix = DOT + actualPath;
-        if (stat(dotPrefix.c_str(), &st) == 0)
-            return st;
-
-        // Try removing the slash
-        String noSlash = actualPath.substr(1);
-        if (stat(noSlash.c_str(), &st) == 0)
-            return st;
-    }
 
     st.st_mode = 0; // Mark invalid
     return st;

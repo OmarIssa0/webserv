@@ -70,15 +70,16 @@ bool   decodeChunkedBody(const String& chunkedBody, String& decodedBody);
 bool   getHeaderValue(const String& headers, const String& headerName, String& outValue);
 bool   extractContentLength(ssize_t& contentLength, const String& headers);
 bool   requireSingleValue(const VectorString& v, const String& directive);
-// --- Templates ---
 
-// Check if key exists in map
+
+
+
+//! --- Templates ---
 template <typename MapType, typename KeyType>
 bool keyExists(const MapType& m, const KeyType& key) {
     return m.find(key) != m.end();
 }
 
-// Get value from map with default
 template <typename MapType, typename KeyType, typename ValueType>
 ValueType getValue(const MapType& m, const KeyType& key, const ValueType& defaultValue = ValueType()) {
     typename MapType::const_iterator it = m.find(key);
@@ -88,14 +89,12 @@ ValueType getValue(const MapType& m, const KeyType& key, const ValueType& defaul
     return defaultValue;
 }
 
-// Check if map has non-empty value for key
 template <typename MapType, typename KeyType>
 bool hasNonEmptyValue(const MapType& m, const KeyType& key) {
     typename MapType::const_iterator it = m.find(key);
     return (it != m.end() && !it->second.empty());
 }
 
-// Convert any streamable type to String
 template <typename type>
 String typeToString(type _value) {
     std::stringstream ss;
@@ -103,7 +102,6 @@ String typeToString(type _value) {
     return ss.str();
 }
 
-// Convert String to any streamable type
 template <typename T>
 bool stringToType(const String& str, T& out) {
     std::stringstream ss(str);
@@ -114,15 +112,13 @@ bool stringToType(const String& str, T& out) {
     return true;
 }
 
-// Check if key exists in std::map (Redundant with keyExists but kept for compatibility)
 template <typename K, typename V>
 bool isKeyInMap(const K& key, const std::map<K, V>& m) {
     return m.find(key) != m.end();
 }
 
-// Check if key exists in std::vector
-template <typename K, typename V>
-bool isKeyInVector(const K& key, const std::vector<K, V>& vector) {
+template <typename K>
+bool isKeyInVector(const K& key, const std::vector<K>& vector) {
     for (size_t i = 0; i < vector.size(); ++i)
         if (vector[i] == key)
             return true;

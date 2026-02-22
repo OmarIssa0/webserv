@@ -8,6 +8,9 @@ class ConfigLexer {
    public:
     ConfigLexer(const std::string& filename);
     ~ConfigLexer();
+    ConfigLexer();
+    ConfigLexer(const ConfigLexer& other);
+    ConfigLexer& operator=(const ConfigLexer& other);
 
     ConfigToken nextToken();
 

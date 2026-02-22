@@ -22,8 +22,7 @@ void HttpResponse::setStatus(int code, const String& msg) {
     statusMessage = msg;
 }
 void HttpResponse::addHeader(const String& key, const String& value) {
-    String valueFind = getValue(headers, key, String());
-    headers[key]     = valueFind.empty() ? value : valueFind + ", " + value;
+    headers[key] = value;
 }
 
 void HttpResponse::addSetCookie(const String& cookie) {

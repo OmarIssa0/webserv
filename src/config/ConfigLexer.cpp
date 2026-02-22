@@ -7,6 +7,17 @@ ConfigLexer::ConfigLexer(const std::string& filename) : _line(1) {
     }
 }
 
+ConfigLexer::ConfigLexer(const ConfigLexer& other) : _line(other._line) {}
+
+ConfigLexer::ConfigLexer() : _line(0) {}
+
+ConfigLexer& ConfigLexer::operator=(const ConfigLexer& other) {
+    if (this != &other) {
+        _line = other._line;
+    }
+    return *this;
+}
+
 ConfigLexer::~ConfigLexer() {
     if (_file.is_open())
         _file.close();

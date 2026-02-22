@@ -90,7 +90,7 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
         return Logger::error("Invalid request line format");
     }
 
-    uri         = urlDecode(values[0]);
+    uri         = values[0];
     httpVersion = values[1];
     if (method.empty() || uri.empty() || httpVersion.empty()) {
         errorCode = HTTP_BAD_REQUEST;
@@ -116,6 +116,7 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
         fragment = "";
     if (!splitByChar(uri, uri, queryString, QUESTION))
         queryString = "";
+    uri = urlDecode(uri);
 
     size_t pos = lineEnd + 2; // +2 to skip \r\n
     while (pos < headerSection.size()) {

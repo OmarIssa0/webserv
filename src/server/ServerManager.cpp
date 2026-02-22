@@ -115,8 +115,6 @@ bool ServerManager::run() {
     time_t lastSessionCleanup = getCurrentTime();
     while (g_running) {
         int eventCount = pollManager.pollConnections(10);
-        // need refactor to avoid calling getCurrentTime() multiple times in loop, but this is simple
-
         checkTimeouts(CLIENT_TIMEOUT);
         if (getDifferentTime(lastSessionCleanup, getCurrentTime()) > SESSION_CLEANUP_INTERVAL) {
             sessionManager.cleanupExpiredSessions(SESSION_TIMEOUT);
@@ -127,31 +125,30 @@ bool ServerManager::run() {
 
         for (size_t i = 0; i < pollManager.size() && eventCount > 0; i++) {
             int  fd     = pollManager.getFd(i);
-            bool hasIn  = pollManager.hasEvent(i, POLLIN); // when client sends data or new connection on server socket
-            bool hasOut = pollManager.hasEvent(
-                i, POLLOUT); // when client socket is ready to send data (after response is set) or when CGI pipe is ready to write
+            if (fd < 0) continue;
+            bool hasIn  = pollManager.hasEvent(i, POLLIN);
+            bool hasOut = pollManager.hasEvent(i, POLLOUT);
             bool hasHup = pollManager.hasEvent(i, POLLHUP);
             bool hasErr = pollManager.hasEvent(i, POLLERR);
 
             if (!hasIn && !hasOut && !hasHup && !hasErr)
                 continue;
-            // CGI pipe events
             if (isCgiPipe(fd)) {
                 if (hasOut)
                     handleCgiWrite(fd);
                 if (hasIn || hasHup || hasErr)
                     handleCgiRead(fd);
                 eventCount--;
+                if (i < pollManager.size() && pollManager.getFd(i) != fd)
+                    --i;
                 continue;
             }
             // server or client socket events
             if (hasIn) {
-                // server socket event (new connection)
                 if (isServerSocket(fd)) {
                     Server* server = findServerByFd(fd);
                     if (server)
                         acceptNewConnection(server);
-                    // client socket event (data received)
                 } else if (clients.find(fd) != clients.end()) {
                     handleClientRead(fd);
                 }
@@ -164,6 +161,8 @@ bool ServerManager::run() {
                 }
                 eventCount--;
             }
+            if (i < pollManager.size() && pollManager.getFd(i) != fd)
+                --i;
         }
     }
     return true;
@@ -195,10 +194,13 @@ void ServerManager::handleClientRead(int clientFd) {
         return;
     }
 
-    if (client->receiveData() <= 0) {
+    ssize_t received = client->receiveData();
+    if (received == 0) {  // 0 = client disconnected gracefully
         closeClientConnection(clientFd);
         return;
     }
+    if (received < 0)  // non-blocking socket: no data yet, try later
+        return;
     if (client->getCgi().isActive())
         return;
     Server* server = getValue(clientToServer, clientFd, (Server*)NULL);
@@ -277,7 +279,7 @@ void ServerManager::processRequest(Client* client, Server* server) {
     size_t        dataSize = buffer.size();
 
     // 1. Check for Header End
-    size_t headerEnd    = buffer.find("\r\n\r\n");
+    size_t headerEnd    = buffer.find(DOUBLE_CRLF);
     size_t headerEndLen = 4;
     if (headerEnd == String::npos) {
         headerEnd    = buffer.find("\n\n");
@@ -311,11 +313,18 @@ void ServerManager::processRequest(Client* client, Server* server) {
 
     if (isChunked) {
         String bodyPart   = buffer.substr(headerEnd + headerEndLen);
-        size_t terminator = bodyPart.find("0\r\n\r\n");
-        if (terminator == String::npos)
+        // Look for the chunk terminator: CRLF before "0\r\n\r\n"
+        size_t terminator = bodyPart.find("\r\n0\r\n\r\n");
+        if (terminator != String::npos) {
+            terminator += 2; // point to the '0'
+            requestSize = headerEnd + headerEndLen + terminator + 5;
+        } else if (bodyPart.find("0\r\n\r\n") == 0) {
+            // Empty body: first chunk is the zero-length terminator
+            terminator = 0;
+            requestSize = headerEnd + headerEndLen + 5;
+        } else {
             return; // Wait for more chunks
-
-        requestSize        = headerEnd + headerEndLen + terminator + 5;
+        }
         String chunkedBody = bodyPart.substr(0, terminator + 5);
         String decodedBody;
 
@@ -326,13 +335,10 @@ void ServerManager::processRequest(Client* client, Server* server) {
 
         fullRequest = headerSection + "\r\nContent-Length: " + typeToString<size_t>(decodedBody.size()) + "\r\n\r\n" + decodedBody;
     } else {
-        ssize_t contentLength;
-        if (!extractContentLength(contentLength, headerSection)) {
-            sendErrorResponse(client, HTTP_BAD_REQUEST, getHttpStatusMessage(HTTP_BAD_REQUEST), true, 0);
-            return;
-        }
-        requestSize         = headerEnd + headerEndLen + contentLength;
-        ssize_t maxBodysize = clientToServer[client->getFd()]->getConfig().getClientMaxBody();
+        ssize_t contentLength = 0;
+        bool    hasContentLength = extractContentLength(contentLength, headerSection);
+        requestSize              = headerEnd + headerEndLen + (hasContentLength ? contentLength : 0);
+        ssize_t maxBodysize      = clientToServer[client->getFd()]->getConfig().getClientMaxBody();
         if (maxBodysize != -1 && contentLength > maxBodysize) {
             if (dataSize >= requestSize)
                 sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, requestSize);
@@ -544,7 +550,8 @@ bool ServerManager::isServerSocket(int fd) const {
 }
 
 void ServerManager::shutdown() {
-    if (!g_running)
+    // Idempotent: if already cleaned up, skip
+    if (servers.empty() && clients.empty())
         return;
 
     Logger::info("Shutting down...");

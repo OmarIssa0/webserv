@@ -3,28 +3,33 @@
 #include <sstream>
 
 std::string ErrorPageHandler::generateHtml(int code, const std::string& msg) const {
-    String errorPage;
-
-    if (!readFileContent("www/error.html", errorPage)) {
-        // Fallback HTML if error.html is not found
-        return "<!DOCTYPE html>\n"
-               "<html lang=\"en\">\n"
-               "<head>\n"
-               "<meta charset=\"UTF-8\">\n"
-               "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-               "<title>" +
-               typeToString<int>(code) + " " + msg +
-               "</title>\n"
-               "</head>\n"
-               "<body>\n"
-               "<h1>" +
-               typeToString<int>(code) + " " + msg +
-               "</h1>\n"
-               "<p>The server encountered an error while processing your request.</p>\n"
-               "</body>\n"
-               "</html>\n";
-    }
-    return errorPage;
+    return "<!DOCTYPE html>\n"
+           "<html lang=\"en\">\n"
+           "<head>\n"
+           "<meta charset=\"UTF-8\">\n"
+           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+           "<title>" +
+           typeToString<int>(code) + " " + msg +
+           "</title>\n"
+           "<style>\n"
+           "body{font-family:system-ui;background:#0f172a;color:#e2e8f0;display:flex;"
+           "justify-content:center;align-items:center;min-height:100vh;margin:0;}\n"
+           ".box{text-align:center;}\n"
+           "h1{font-size:6rem;margin:0;color:#f43f5e;}\n"
+           "p{font-size:1.5rem;color:#94a3b8;}\n"
+           "</style>\n"
+           "</head>\n"
+           "<body>\n"
+           "<div class=\"box\">\n"
+           "<h1>" +
+           typeToString<int>(code) +
+           "</h1>\n"
+           "<p>" +
+           msg +
+           "</p>\n"
+           "</div>\n"
+           "</body>\n"
+           "</html>\n";
 }
 
 void ErrorPageHandler::handle(HttpResponse& response, const RouteResult& resultRouter, const MimeTypes& mimeTypes) const {

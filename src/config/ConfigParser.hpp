@@ -8,7 +8,10 @@
 
 class ConfigParser {
    public:
+    ConfigParser();
     ConfigParser(const String& filename);
+    ConfigParser(const ConfigParser& other);
+    ConfigParser &operator=(const ConfigParser& other);
     ~ConfigParser();
 
     bool                      parse();

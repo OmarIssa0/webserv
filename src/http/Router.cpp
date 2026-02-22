@@ -32,17 +32,26 @@ void Router::resolveCgiScriptAndPathInfo(const LocationConfig* loc, String& scri
 
     VectorString segments;
     splitByString(rest, segments, "/");
-    String accumulated;
-    for (size_t i = 0; i < segments.size(); i++) {
-        if (segments[i].empty())
-            continue;
-        accumulated += "/" + segments[i];
+    
+    for (size_t i = segments.size(); i > 0; --i) {
+        String accumulated;
+        for (size_t k = 0; k < i; ++k) {
+            if (!segments[k].empty())
+                accumulated += "/" + segments[k];
+        }
+        
+        if (accumulated.empty()) continue;
+        
         String candidate = joinPaths(root, accumulated);
         if (fileExists(candidate) && getFileType(candidate) == SINGLEFILE && isCgiRequest(candidate, *loc)) {
             scriptPath = candidate;
-            for (size_t j = i + 1; j < segments.size(); j++) {
-                if (!segments[j].empty())
-                    pathInfo += "/" + segments[j];
+            if (rest.size() > accumulated.size()) {
+                pathInfo = rest.substr(accumulated.size());
+                if (pathInfo.empty() || pathInfo[0] != '/') {
+                    pathInfo = "/" + pathInfo;
+                }
+            } else if (rest.size() == accumulated.size()) {
+                pathInfo.clear();
             }
             return;
         }
@@ -73,7 +82,15 @@ RouteResult Router::processRequest() {
     if (loc->getIsRedirect())
         return result.setRedirect(loc->getRedirectValue(), loc->getRedirectCode());
 
-    // 4. CGI handling — check BEFORE method/body limits per requirement
+    // 4. Method check
+    if (!isKeyInVector(_request.getMethod(), loc->getAllowedMethods()))
+        return result.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
+
+    // 5. Body size check
+    if (_request.getContentLength() > 0 && static_cast<ssize_t>(_request.getContentLength()) > loc->getClientMaxBody())
+        return result.setCodeAndMessage(HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE));
+
+    // 6. CGI handling
     if (loc->hasCgi()) {
         String scriptPath, pathInfo;
         resolveCgiScriptAndPathInfo(loc, scriptPath, pathInfo);
@@ -87,14 +104,6 @@ RouteResult Router::processRequest() {
             return result;
         }
     }
-
-    // 5. Method check
-    if (!isKeyInVector(_request.getMethod(), loc->getAllowedMethods()))
-        return result.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
-
-    // 6. Body size check
-    if (_request.getContentLength() > 0 && static_cast<ssize_t>(_request.getContentLength()) > loc->getClientMaxBody())
-        return result.setCodeAndMessage(HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE));
 
     // 7. Upload handling (POST/PUT to a location with upload_dir)
     if (!loc->getUploadDir().empty() && (_request.getMethod() == "POST" || _request.getMethod() == "PUT")) {
@@ -129,6 +138,16 @@ RouteResult Router::processRequest() {
                 return result;
             }
             return result.setCodeAndMessage(HTTP_NOT_FOUND, getHttpStatusMessage(HTTP_NOT_FOUND));
+        }
+
+        // If the resolved index file is a CGI script, serve it as CGI
+        if (loc->hasCgi() && isCgiRequest(fsPath, *loc)) {
+            result.setPathRootUri(fsPath);
+            result.setRemainingPath("");
+            result.setCgiRequest(true);
+            result.setMatchedPath(loc->getPath());
+            result.setStatusCode(HTTP_OK);
+            return result;
         }
     }
 
@@ -202,5 +221,5 @@ bool Router::isCgiRequest(const String& path, const LocationConfig& loc) const {
     if (!splitByChar(path, name, ext, '.', true))
         return false;
 
-    return !loc.getCgiInterpreter("." + ext).empty();
+    return !loc.getCgiInterpreter("." + toLowerWords(ext)).empty();
 }

@@ -55,6 +55,8 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
         return Logger::error("CGI fork failed");
     }
 
+    String scriptDir = extractDirectoryFromPath(scriptPath);
+
     if (pid == 0) {
         if (close(parentToChild[1]) == -1) {
             perror("CGI close parentToChild[1] failed");
@@ -87,8 +89,7 @@ bool CgiHandler::handle(const RouteResult& resultRouter, HttpResponse& response,
             }
         }
 
-        String scriptDir = extractDirectoryFromPath(scriptPath);
-        String fileName  = scriptPath.substr(scriptDir.size());
+        String fileName = scriptPath.substr(scriptDir.size());
         if (!scriptDir.empty()) {
             if (chdir(scriptDir.c_str()) != 0) {
                 perror("CGI chdir failed");
@@ -148,7 +149,12 @@ bool CgiHandler::parseOutput(const String& raw, HttpResponse& response) {
         String key = trimSpaces(line.substr(0, colon));
         String val = trimSpaces(line.substr(colon + 1));
         if (toLowerWords(key) == "status") {
-            response.setStatus(atoi(val.c_str()), "OK");
+            int    code  = atoi(val.c_str());
+            String msg   = "OK";
+            size_t space = val.find(' ');
+            if (space != String::npos)
+                msg = val.substr(space + 1);
+            response.setStatus(code, msg);
             statusSet = true;
         } else if (toLowerWords(key) == "set-cookie") {
             response.addSetCookie(val);
@@ -168,29 +174,36 @@ VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
     const LocationConfig* loc = resultRouter.getLocation();
     if (!loc)
         return env;
-
     // --- Server info ---
-    env.push_back("SERVER_SOFTWARE=Webserv/1.0");
-    env.push_back("SERVER_NAME=" + req.getHost());
-    env.push_back("SERVER_PORT=" + typeToString<int>(req.getPort()));
     env.push_back("GATEWAY_INTERFACE=" + String(CGI_INTERFACE)); // CGI/1.1
+    env.push_back("SERVER_NAME=" + resultRouter.getServer()->getServerName());
+    env.push_back("SERVER_SOFTWARE=Webserv/1.0");
+    env.push_back("SERVER_PORT=" + typeToString<int>(req.getPort()));
     env.push_back("SERVER_PROTOCOL=" + req.getHttpVersion());
-
-    // --- Request info ---
     env.push_back("REQUEST_METHOD=" + req.getMethod());
+    // --- Request info ---
+    // Calculate SCRIPT_NAME (URI part before PATH_INFO)
+    String uri        = req.getUri();
+    String pathInfo   = resultRouter.getRemainingPath();
+    String scriptName = uri;
+
+    env.push_back("REQUEST_URI=" + uri);
     env.push_back("QUERY_STRING=" + req.getQueryString());
-    env.push_back("REQUEST_URI=" + req.getUri());
-    String scriptName     = resultRouter.getMatchedPath();
-    String scriptFilename = resultRouter.getPathRootUri();
-    String pathInfo       = resultRouter.getRemainingPath();
-
     env.push_back("SCRIPT_NAME=" + scriptName);
-    env.push_back("SCRIPT_FILENAME=" + scriptFilename);
-    env.push_back("PATH_INFO=" + pathInfo);
-
+    env.push_back("SCRIPT_FILENAME=" + resultRouter.getPathRootUri());
+    env.push_back("PATH_INFO=" + uri);
+    if (!pathInfo.empty()) {
+        env.push_back("PATH_TRANSLATED=" + joinPaths(loc->getRoot(), pathInfo));
+    } else {
+        // Fallback for cgi_tester: if pathInfo is empty, some versions expect URI in PATH_INFO
+        env.push_back("PATH_TRANSLATED=" + resultRouter.getPathRootUri());
+    }
+    env.push_back("REDIRECT_STATUS=200");
     // --- POST info ---
     if (!req.getContentType().empty())
         env.push_back("CONTENT_TYPE=" + req.getContentType());
+    else
+        env.push_back("CONTENT_TYPE=");
     env.push_back("CONTENT_LENGTH=" + typeToString<size_t>(req.getContentLength()));
     env.push_back("REMOTE_HOST=" + req.getHost());
 

@@ -23,6 +23,28 @@ ConfigParser::ConfigParser(const String& filename) : _lexer(filename), _haveHttp
     _locationDirectives["error_page"]           = &LocationConfig::setErrorPage;
 }
 
+
+ConfigParser::ConfigParser() : _lexer(), _current(), _haveHttp(false), _servers(), _httpClientMaxBody(-1) {}
+
+ConfigParser::ConfigParser(const ConfigParser& other)
+    : _lexer(other._lexer),
+    _current(other._current),
+    _haveHttp(other._haveHttp),
+    _servers(other._servers),
+    _httpClientMaxBody(other._httpClientMaxBody)
+{}
+
+ConfigParser& ConfigParser::operator=(const ConfigParser& other) {
+    if (this != &other) {
+        _lexer = other._lexer;
+        _current = other._current;
+        _haveHttp = other._haveHttp;
+        _servers = other._servers;
+        _httpClientMaxBody = other._httpClientMaxBody;
+    }
+    return *this;
+}
+
 ConfigParser::~ConfigParser() {}
 
 void ConfigParser::nextToken() {
