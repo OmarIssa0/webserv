@@ -84,7 +84,7 @@ void Server::stop() {
     running = false;
 }
 
-int Server::acceptConnection(sockaddr_in* client_addr) {
+int Server::acceptConnection(String& remoteAddress) {
     if (!running || server_fd == -1) {
         Logger::error("Cannot accept connection: server not running");
         return -1;
@@ -92,8 +92,7 @@ int Server::acceptConnection(sockaddr_in* client_addr) {
 
     sockaddr_in  addr;
     socklen_t    addr_len  = sizeof(addr);
-    sockaddr_in* addr_ptr  = client_addr ? client_addr : &addr;
-    int          client_fd = accept(server_fd, (sockaddr*)addr_ptr, &addr_len);
+    int          client_fd = accept(server_fd, (sockaddr*)&addr, &addr_len);
     if (client_fd < 0) {
         Logger::error("Failed to accept new connection");
         return -1;
@@ -103,6 +102,9 @@ int Server::acceptConnection(sockaddr_in* client_addr) {
         Logger::error("Failed to set non-blocking mode for client socket");
         return -1;
     }
+    unsigned char* ip = (unsigned char*)&addr.sin_addr.s_addr;
+    std::cout << "[INFO]: New connection from " << (int)ip[0] << "." << (int)ip[1] << "." << (int)ip[2] << "." << (int)ip[3] << std::endl;
+    remoteAddress = typeToString<int>(ip[0]) + "." + typeToString<int>(ip[1]) + "." + typeToString<int>(ip[2]) + "." + typeToString<int>(ip[3]);
     return client_fd;
 }
 

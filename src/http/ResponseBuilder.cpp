@@ -60,8 +60,7 @@ HttpResponse ResponseBuilder::build(const RouteResult& resultRouter, CgiProcess*
     if (resultRouter.getStatusCode() == HTTP_OK) {
         String method = resultRouter.getRequest().getMethod();
         if (handleType == NOT_FOUND && method != "GET" && method != "DELETE" && method != "HEAD") {
-            errResult.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED,
-                                        getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
+            errResult.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
         } else {
             errResult.setCodeAndMessage(HTTP_INTERNAL_SERVER_ERROR, "Internal Server Error");
         }
@@ -131,7 +130,18 @@ bool ResponseBuilder::handleUpload(HttpResponse& response, const RouteResult& re
 void ResponseBuilder::handleError(HttpResponse& response, const RouteResult& resultRouter) {
     ErrorPageHandler handler;
     handler.handle(response, resultRouter, mimeTypes);
+    if (resultRouter.getStatusCode() == HTTP_METHOD_NOT_ALLOWED && resultRouter.getLocation()) {
+        const VectorString& methods = resultRouter.getLocation()->getAllowedMethods();
+        String              allow;
+        for (size_t i = 0; i < methods.size(); ++i) {
+            if (i > 0)
+                allow += ", ";
+            allow += methods[i];
+        }
+        response.addHeader("Allow", allow);
+    }
 }
+
 
 bool ResponseBuilder::handleCgi(HttpResponse& response, const RouteResult& resultRouter, CgiProcess* cgi, const VectorInt& openFds) const {
     if (!cgi)

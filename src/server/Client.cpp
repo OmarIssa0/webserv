@@ -63,6 +63,10 @@ void Client::setSendData(const String& data) {
     storeSendData = data;
 }
 
+void Client::setRemoteAddress(const String& address) {
+    remoteAddress = address;
+}
+
 void Client::clearStoreReceiveData() {
     storeReceiveData.clear();
 }
@@ -101,6 +105,14 @@ CgiProcess& Client::getCgi() {
 const CgiProcess& Client::getCgi() const {
     return _cgi;
 }
+
+String Client::getRemoteAddress() const {
+    return remoteAddress;
+}
+// "http://localhost:8080/cgi-bin/env.py/loay?omar=my_bitch
+// scriptNmae: /cgi-bin/env.py
+//query omar=my_bitch
+//path_info /loay
 
 void Client::setKeepAlive(bool keepAlive) {
     _keepAlive = keepAlive;

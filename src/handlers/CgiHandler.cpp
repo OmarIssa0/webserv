@@ -198,6 +198,7 @@ VectorString CgiHandler::buildEnv(const RouteResult& resultRouter) const {
         env.push_back("PATH_TRANSLATED=" + resultRouter.getPathRootUri());
     }
     env.push_back("REDIRECT_STATUS=200");
+    env.push_back("REMOTE_ADDR=" + resultRouter.getRemoteAddress());
     // --- POST info ---
     if (!req.getContentType().empty())
         env.push_back("CONTENT_TYPE=" + req.getContentType());

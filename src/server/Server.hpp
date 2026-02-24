@@ -33,7 +33,7 @@ class Server {
 
     bool init();
     void stop();
-    int  acceptConnection(sockaddr_in* client_addr = 0);
+    int  acceptConnection(String& remoteAddress);
 
     // getters
     int          getFd() const;

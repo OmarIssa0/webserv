@@ -27,6 +27,7 @@ class RouteResult {
     void setUploadRequest(bool isUpload);
     void setRequest(const HttpRequest& req);
     void setHandlerType(HandlerType type);
+    void setRemoteAddress(const String& address);
 
     // Getters
     int                   getStatusCode() const;
@@ -42,6 +43,7 @@ class RouteResult {
     bool                  getIsUploadRequest() const;
     const HttpRequest&    getRequest() const;
     HandlerType           getHandlerType() const;
+    String                getRemoteAddress() const;
 
    private:
     int                   statusCode;
@@ -57,5 +59,6 @@ class RouteResult {
     bool                  isUploadRequest;
     HttpRequest           request;
     HandlerType           handlerType;
+    String                remoteAddress;
 };
 #endif

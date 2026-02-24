@@ -119,6 +119,10 @@ RouteResult& RouteResult::setCodeAndMessage(int code, const String& message) {
     return *this;
 }
 
+void RouteResult::setRemoteAddress(const String& address) {
+    remoteAddress = address;
+}
+
 // Getters
 int RouteResult::getStatusCode() const {
     return statusCode;
@@ -170,4 +174,8 @@ const HttpRequest& RouteResult::getRequest() const {
 
 HandlerType RouteResult::getHandlerType() const {
     return handlerType;
+}
+
+String RouteResult::getRemoteAddress() const {
+    return remoteAddress;
 }

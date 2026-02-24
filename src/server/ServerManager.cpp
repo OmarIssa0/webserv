@@ -169,13 +169,15 @@ bool ServerManager::run() {
 }
 
 bool ServerManager::acceptNewConnection(Server* server) {
-    int clientFd = server->acceptConnection();
+    String remoteAddress;
+    int    clientFd = server->acceptConnection(remoteAddress);
     if (clientFd < 0)
         return Logger::error("Failed to accept new connection");
 
     Client* client = NULL;
     try {
         client = new Client(clientFd);
+        client->setRemoteAddress(remoteAddress);
     } catch (const std::bad_alloc& e) {
         Logger::error("Memory allocation failed for client");
         close(clientFd);
@@ -199,7 +201,7 @@ void ServerManager::handleClientRead(int clientFd) {
         closeClientConnection(clientFd);
         return;
     }
-    if (received < 0) // non-blocking socket: no data yet, try later
+    if (received < 0)
         return;
     if (client->getCgi().isActive())
         return;
@@ -320,11 +322,10 @@ void ServerManager::processRequest(Client* client, Server* server) {
         String bodyPart   = buffer.substr(headerEnd + headerEndLen);
         size_t finalChunk = bodyPart.find("\r\n0\r\n");
         if (finalChunk == String::npos) {
-            if (bodyPart.find("0\r\n\r\n") == 0) 
+            if (bodyPart.find("0\r\n\r\n") == 0)
                 finalChunk = 0;
-             else 
+            else
                 return;
-            
         }
 
         size_t endMarker = bodyPart.find("\r\n\r\n", finalChunk);
@@ -412,10 +413,11 @@ void ServerManager::processRequest(Client* client, Server* server) {
 
     // 6. Routing
     Router      router(serverToConfigs[server->getFd()], request);
-    RouteResult result = router.processRequest();
+    RouteResult routerResult = router.processRequest();
+    routerResult.setRemoteAddress(client->getRemoteAddress());
 
     // Body size check against location config
-    const LocationConfig* loc    = result.getLocation();
+    const LocationConfig* loc    = routerResult.getLocation();
     ssize_t               locMax = (loc ? loc->getClientMaxBody() : -1);
 
     if (locMax != -1 && static_cast<ssize_t>(request.getBody().size()) > locMax) {
@@ -444,7 +446,7 @@ void ServerManager::processRequest(Client* client, Server* server) {
 
     // 8. Build Response
     ResponseBuilder builder(mimeTypes);
-    HttpResponse    response = builder.build(result, &client->getCgi(), pollManager.getFds());
+    HttpResponse    response = builder.build(routerResult, &client->getCgi(), pollManager.getFds());
 
     if (keepAlive)
         response.addHeader("Connection", "keep-alive");

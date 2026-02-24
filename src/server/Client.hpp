@@ -15,6 +15,7 @@ class Client {
     time_t     lastActivity;
     CgiProcess _cgi;
     bool       _keepAlive;
+    String     remoteAddress;
 
    public:
     Client(const Client&);
@@ -23,16 +24,18 @@ class Client {
     Client();
     ~Client();
 
-    ssize_t receiveData();
-    ssize_t sendData();
-    void    setSendData(const String& data);
-    void    clearStoreReceiveData();
-    bool    isTimedOut(int timeout) const;
-    void    closeConnection();
-    void    removeReceivedData(size_t len);
+    ssize_t       receiveData();
+    ssize_t       sendData();
+    void          setSendData(const String& data);
+    void          setRemoteAddress(const String& address);
+    void          clearStoreReceiveData();
+    bool          isTimedOut(int timeout) const;
+    void          closeConnection();
+    void          removeReceivedData(size_t len);
     const String& getStoreReceiveData() const;
     const String& getStoreSendData() const;
-    int     getFd() const;
+    int           getFd() const;
+    String        getRemoteAddress() const;
 
     CgiProcess&       getCgi();
     const CgiProcess& getCgi() const;
