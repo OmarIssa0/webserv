@@ -117,11 +117,10 @@ bool CgiProcess::finish() {
         close(_readFd);
         _readFd = INVALID_FD;
     }
-    int status = 0;
-    pid_t ret = waitpid(_pid, &status, WNOHANG);
+    int   status = 0;
+    pid_t ret    = waitpid(_pid, &status, WNOHANG);
     if (ret == 0) {
         kill(_pid, SIGTERM);
-        usleep(100000);
         ret = waitpid(_pid, &status, WNOHANG);
         if (ret == 0) {
             kill(_pid, SIGKILL);

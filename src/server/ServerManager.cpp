@@ -38,7 +38,7 @@ bool ServerManager::initialize() {
     if (!initializeServers(serverConfigs) || servers.empty())
         return Logger::error("Failed to initialize servers");
     g_running = 1;
-    return Logger::info("[INFO]: ServerManager initialized");
+    return Logger::info("ServerManager initialized");
 }
 
 ListenerToConfigsMap ServerManager::mapListenersToConfigs(const VectorServerConfig& serversConfigs) {
@@ -113,7 +113,7 @@ bool ServerManager::run() {
         return Logger::error("Cannot run server manager");
     time_t lastSessionCleanup = getCurrentTime();
     while (g_running) {
-        int eventCount = pollManager.pollConnections(10);
+        int eventCount = pollManager.pollConnections(100);
         checkTimeouts(CLIENT_TIMEOUT);
         if (getDifferentTime(lastSessionCleanup, getCurrentTime()) > SESSION_CLEANUP_INTERVAL) {
             sessionManager.cleanupExpiredSessions(SESSION_TIMEOUT);
@@ -149,20 +149,16 @@ bool ServerManager::run() {
                     Server* server = findServerByFd(fd);
                     if (server)
                         acceptNewConnection(server);
-                } else if (clients.find(fd) != clients.end()) {
+                } else if (clients.find(fd) != clients.end())
                     handleClientRead(fd);
-                }
-                eventCount--;
             }
             // client socket ready to send data
-            if (hasOut) {
-                if (clients.find(fd) != clients.end()) {
-                    handleClientWrite(fd);
-                }
-                eventCount--;
-            }
+            if (hasOut && clients.find(fd) != clients.end())
+                handleClientWrite(fd);
+
             if (i < pollManager.size() && pollManager.getFd(i) != fd)
                 --i;
+            eventCount--;
         }
     }
     return true;
@@ -186,7 +182,7 @@ bool ServerManager::acceptNewConnection(Server* server) {
     clients[clientFd]        = client;
     clientToServer[clientFd] = server;
     pollManager.addFd(clientFd, POLLIN);
-    return Logger::info("[INFO]: Connection accepted on port " + typeToString(server->getPort()));
+    return Logger::info("Connection accepted on port " + typeToString(server->getPort()));
 }
 
 void ServerManager::handleClientRead(int clientFd) {
@@ -240,7 +236,7 @@ void ServerManager::checkTimeouts(int timeout) {
     for (MapIntClientPtr::iterator it = clients.begin(); it != clients.end(); ++it) {
         if (it->second->getCgi().isActive()) {
             if (getDifferentTime(it->second->getCgi().getStartTime(), getCurrentTime()) > CGI_TIMEOUT) {
-                Logger::info("[INFO]: CGI timeout, killing process");
+                Logger::info("CGI timeout, killing process");
                 cleanupClientCgi(it->second);
                 ResponseBuilder builder(mimeTypes);
                 HttpResponse    response = builder.buildError(HTTP_GATEWAY_TIMEOUT, "CGI Timeout");
@@ -254,7 +250,7 @@ void ServerManager::checkTimeouts(int timeout) {
     }
 
     for (size_t i = 0; i < toClose.size(); i++) {
-        Logger::info("[INFO]: Client timeout, closing connection");
+        Logger::info("Client timeout, closing connection");
         closeClientConnection(toClose[i]);
     }
 }
@@ -431,15 +427,15 @@ void ServerManager::processRequest(Client* client, Server* server) {
 
     String connHeader = request.getHeader("connection");
     if (!connHeader.empty()) {
-        String connLower = toLowerWords(connHeader);
-
-        if (connLower == "close")
-            keepAlive = false;
-        else if (connLower == "keep-alive")
-            keepAlive = true;
-        else {
-            sendErrorResponse(client, HTTP_BAD_REQUEST, getHttpStatusMessage(HTTP_BAD_REQUEST), true, requestSize);
-            return;
+        String       connLower = toLowerWords(connHeader);
+        VectorString connValues;
+        splitByString(connLower, connValues, ",");
+        for (size_t i = 0; i < connValues.size(); ++i) {
+            std::string token = trimSpaces(toLowerWords(connValues[i]));
+            if (token == "close")
+                keepAlive = false;
+            else if (token == "keep-alive")
+                keepAlive = true;
         }
     }
 
@@ -516,7 +512,7 @@ void ServerManager::registerCgiPipes(Client* client) {
     }
     pollManager.addFd(cgi.getReadFd(), POLLIN);
     cgiPipeToClient[cgi.getReadFd()] = clientFd;
-    Logger::info("[INFO]: CGI process started (pid " + typeToString<int>(cgi.getPid()) + ")");
+    Logger::info("CGI process started (pid " + typeToString<int>(cgi.getPid()) + ")");
 }
 
 void ServerManager::handleCgiWrite(int pipeFd) {
@@ -551,7 +547,6 @@ void ServerManager::handleCgiRead(int pipeFd) {
         ResponseBuilder builder(mimeTypes);
         client->setSendData(builder.buildCgiResponse(client->getCgi()).toString());
         pollManager.addFd(client->getFd(), POLLIN | POLLOUT);
-        Logger::info("[INFO]: CGI process finished");
     }
 }
 

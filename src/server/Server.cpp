@@ -73,7 +73,7 @@ bool Server::init() {
     }
 
     running = true;
-    return Logger::info("[INFO]: Server initialized on port " + typeToString<int>(config.getPort(listenIndex)));
+    return Logger::info("Server initialized on port " + typeToString<int>(config.getPort(listenIndex)));
 }
 
 void Server::stop() {
@@ -103,7 +103,6 @@ int Server::acceptConnection(String& remoteAddress) {
         return -1;
     }
     unsigned char* ip = (unsigned char*)&addr.sin_addr.s_addr;
-    std::cout << "[INFO]: New connection from " << (int)ip[0] << "." << (int)ip[1] << "." << (int)ip[2] << "." << (int)ip[3] << std::endl;
     remoteAddress = typeToString<int>(ip[0]) + "." + typeToString<int>(ip[1]) + "." + typeToString<int>(ip[2]) + "." + typeToString<int>(ip[3]);
     return client_fd;
 }
