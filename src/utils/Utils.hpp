@@ -17,7 +17,7 @@
 // --- Time Methods ---
 time_t getCurrentTime();
 void   updateTime(time_t& t);
-time_t getDifferentTime(const time_t& start, const time_t& end);
+time_t getElapsedSeconds(const time_t& start, const time_t& end);
 String formatDateTime(time_t t = getCurrentTime());
 // --- String Methods ---
 String toUpperWords(const String& str);
@@ -25,15 +25,13 @@ String toLowerWords(const String& str);
 String trimSpaces(const String& s);
 String trimQuotes(const String& s);
 String trimSpacesComments(const String& s);
-String cleanCharEnd(const String& v, char c);
+String trimTrailingChar(const String& v, char c);
 bool   splitByChar(const String& line, String& key, String& value, char endChar, bool reverse = false);
 bool   splitByString(const String& line, VectorString& values, const String& delimiter);
 String htmlEntities(const String& str);
 String generateGUID();
 
 // --- Map Helpers ---
-String findValueStrInMap(const MapString& map, const String& key);
-String findValueIntInMap(const MapIntString& map, int key);
 
 // --- File System Methods ---
 bool        convertFileToLines(const String& file, VectorString& lines);
@@ -54,7 +52,8 @@ bool          pathStartsWith(const String& path, const String& prefix);
 String getUriRemainder(const String& uri, const String& locPath);
 
 // --- HTTP/Network Helpers ---
-bool          checkAllowedMethods(const String& m);
+bool          isValidHttpMethod(const String& m);
+bool          isMethodWithBody(const String& m);
 bool          parseKeyValue(const String& line, String& key, VectorString& values);
 size_t        convertMaxBodySize(const String& maxBody);
 String formatSize(double size);
@@ -65,10 +64,7 @@ String getHttpStatusMessage(int code);
 String extractFilenameFromHeader(const String& contentDisposition);
 String extractBoundaryFromContentType(const String& contentType);
 bool   parseMultipartFormData(const String& body, const String& boundary, String& filename, String& fileContent);
-bool   isChunkedTransferEncoding(const String& headers);
 bool   decodeChunkedBody(const String& chunkedBody, String& decodedBody);
-bool   getHeaderValue(const String& headers, const String& headerName, String& outValue);
-bool   extractContentLength(ssize_t& contentLength, const String& headers);
 bool   requireSingleValue(const VectorString& v, const String& directive);
 
 //! --- Templates ---
@@ -107,11 +103,6 @@ bool stringToType(const String& str, T& out) {
         return false;
 
     return true;
-}
-
-template <typename K, typename V>
-bool isKeyInMap(const K& key, const std::map<K, V>& m) {
-    return m.find(key) != m.end();
 }
 
 template <typename K>

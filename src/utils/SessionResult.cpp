@@ -24,7 +24,7 @@ SessionResult& SessionResult::operator=(const SessionResult& other) {
 SessionResult::~SessionResult() {}
 
 bool SessionResult::isExpired(int timeoutSeconds) const {
-    return getDifferentTime(lastActivity, getCurrentTime()) > timeoutSeconds;
+    return getElapsedSeconds(lastActivity, getCurrentTime()) > timeoutSeconds;
 }
 
 void SessionResult::updateTime() {
@@ -32,7 +32,7 @@ void SessionResult::updateTime() {
 }
 
 String SessionResult::getData(const String& key) const {
-    return findValueStrInMap(data, key);
+    return getValue(data, key, String(EMPTY_STRING));
 }
 
 void SessionResult::setData(const String& key, const String& value) {

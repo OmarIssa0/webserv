@@ -82,11 +82,10 @@ RouteResult Router::processRequest() {
     if (loc->getIsRedirect())
         return result.setRedirect(loc->getRedirectValue(), loc->getRedirectCode());
 
-    // 4. Method check
+    // 4. Method check — HEAD is implicitly allowed wherever GET is (HTTP/1.1 §9.4)
     String methodToCheck = _request.getMethod();
-    // this comment only for tester work 
-    // if (methodToCheck == "HEAD")
-    //     methodToCheck = "GET";
+    // if (methodToCheck == METHOD_HEAD)
+    //     methodToCheck = METHOD_GET;
     if (!isKeyInVector(methodToCheck, loc->getAllowedMethods()))
         return result.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
 
@@ -106,7 +105,7 @@ RouteResult Router::processRequest() {
     }
 
     // 6. Upload handling (POST/PUT to a location with upload_dir)
-    if (!loc->getUploadDir().empty() && (_request.getMethod() == "POST" || _request.getMethod() == "PUT")) {
+    if (!loc->getUploadDir().empty() && isMethodWithBody(_request.getMethod())) {
         result.setUploadRequest(true);
         result.setHandlerType(UPLOAD);
         result.setStatusCode(HTTP_OK);

@@ -41,12 +41,17 @@ class Client {
     String        getRemoteAddress() const;
     bool          isHeadersParsed() const;
     void          setHeadersParsed(bool parsed);
+    void          resetForNextRequest();
     HttpRequest&  getRequest();
 
     CgiProcess&       getCgi();
     const CgiProcess& getCgi() const;
     void              setKeepAlive(bool keepAlive);
     bool              isKeepAlive() const;
+    bool              isChunkedEncoding() const;
+    const String&     getMethod() const;
+    size_t            getContentLength() const;
+    int               getErrorCode() const;
     void              refreshActivity();
 };
 

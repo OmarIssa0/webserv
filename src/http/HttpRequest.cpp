@@ -88,6 +88,48 @@ bool HttpRequest::parse(const String& raw) {
     }
     return true;
 }
+bool HttpRequest::parseRequestLine(const String& requestLine) {
+    VectorString values;
+    if (!parseKeyValue(requestLine, method, values)) {
+        errorCode = HTTP_BAD_REQUEST;
+        return Logger::error("Failed to parse request line");
+    }
+    if (values.size() != 2) {
+        errorCode = HTTP_BAD_REQUEST;
+        return Logger::error("Invalid request line format");
+    }
+
+    uri         = values[0];
+    httpVersion = values[1];
+    if (method.empty() || uri.empty() || httpVersion.empty()) {
+        errorCode = HTTP_BAD_REQUEST;
+        return Logger::error("Empty method, URI, or HTTP version");
+    }
+    if (httpVersion != HTTP_VERSION_1_1 && httpVersion != HTTP_VERSION_1_0) {
+        errorCode = HTTP_VERSION_NOT_SUPPORTED;
+        return Logger::error("Unsupported HTTP version");
+    }
+    if (uri.length() > MAX_URI_LENGTH) {
+        errorCode = HTTP_URI_TOO_LONG;
+        return Logger::error("URI too long");
+    }
+
+    method = toUpperWords(method);
+    if (!isValidHttpMethod(method)) {
+        errorCode = HTTP_NOT_IMPLEMENTED;
+        return Logger::error("Method not implemented");
+    }
+
+    if (!splitByChar(uri, uri, fragment, HASH))
+        fragment = "";
+    if (!splitByChar(uri, uri, queryString, QUESTION))
+        queryString = "";
+    else
+        queryString = urlDecode(queryString);
+    uri = urlDecode(uri);
+    return true;
+}
+
 bool HttpRequest::parseHeaders(const String& headerSection) {
     size_t lineEnd    = headerSection.find(CRLF);
     size_t lineEndLen = 2;
@@ -101,48 +143,13 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
         lineEndLen = 0;
     }
 
-    if (lineEnd == 0 && (errorCode = HTTP_BAD_REQUEST)) {
+    if (lineEnd == 0) {
+        errorCode = HTTP_BAD_REQUEST;
         return Logger::error("Empty request line");
     }
 
-    String       requestLine = headerSection.substr(0, lineEnd);
-    VectorString values;
-    if (!parseKeyValue(requestLine, method, values) && (errorCode = HTTP_BAD_REQUEST)) {
-        return Logger::error("Failed to parse request line");
-    }
-    if (values.size() != 2 && (errorCode = HTTP_BAD_REQUEST)) {
-        return Logger::error("Invalid request line format");
-    }
-
-    uri         = values[0];
-    httpVersion = values[1];
-    if (method.empty() || uri.empty() || httpVersion.empty()) {
-        errorCode = HTTP_BAD_REQUEST;
-        return Logger::error("Empty method, URI, or HTTP version");
-    }
-    // ! Validate HTTP version (505 HTTP Version Not Supported)
-    if (httpVersion != HTTP_VERSION_1_1 && httpVersion != HTTP_VERSION_1_0) {
-        errorCode = HTTP_VERSION_NOT_SUPPORTED;
-        return Logger::error("Unsupported HTTP version");
-    }
-    // ! Validate URI length (414 URI Too Long)
-    if (uri.length() > MAX_URI_LENGTH && (errorCode = HTTP_URI_TOO_LONG))
-        return Logger::error("URI too long");
-
-    method = toUpperWords(method);
-    // ! Check if method is recognized (501 Not Implemented for unknown methods)
-    if (!checkAllowedMethods(method)) {
-        errorCode = HTTP_NOT_IMPLEMENTED;
-        return Logger::error("Method not implemented");
-    }
-
-    if (!splitByChar(uri, uri, fragment, HASH))
-        fragment = "";
-    if (!splitByChar(uri, uri, queryString, QUESTION))
-        queryString = "";
-    else
-        queryString = urlDecode(queryString);
-    uri = urlDecode(uri);
+    if (!parseRequestLine(headerSection.substr(0, lineEnd)))
+        return false;
 
     size_t pos = lineEnd + lineEndLen;
     while (pos < headerSection.size()) {
@@ -164,8 +171,10 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
             break;
 
         String key, value;
-        if (!splitByChar(line, key, value, COLON) && (errorCode = HTTP_BAD_REQUEST))
+        if (!splitByChar(line, key, value, COLON)) {
+            errorCode = HTTP_BAD_REQUEST;
             return Logger::error("Failed to parse header line");
+        }
 
         String headerKey = toLowerWords(trimSpaces(key));
         String headerVal = trimSpaces(value);
@@ -186,34 +195,29 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
         pos = lineEnd + lineEndLen;
     }
 
-    // ! Validate Host header (required in HTTP/1.1)
     if (!validateHostHeader()) {
         errorCode = HTTP_BAD_REQUEST;
         return Logger::error("Missing or invalid Host header");
     }
 
-    // ! Parse cookies if present
     String cookieHeader = getValue(headers, String(HEADER_COOKIE), String());
     if (!cookieHeader.empty())
         parseCookies(cookieHeader);
 
-    // ! Extract Content-Type
     String ct = getValue(headers, String("content-type"), String());
     if (!ct.empty())
         contentType = ct;
 
-    // ! Validate and extract Content-Length
     if (!validateContentLength()) {
         return Logger::error("Invalid Content-Length header");
     }
 
-    // ! Extract host and port
     String portStr;
     String hostHeader = getValue(headers, String(HEADER_HOST), String());
     if (!hostHeader.empty()) {
         if (!splitByChar(hostHeader, host, portStr, COLON)) {
             host = hostHeader;
-        } else if (!stringToType<int>(portStr, port) || port < 1 || port > 65535) {
+        } else if (!stringToType<int>(portStr, port) || port < 1 || port > MAX_PORT) {
             errorCode = HTTP_BAD_REQUEST;
             return Logger::error("Invalid port number in Host header");
         }
@@ -223,25 +227,19 @@ bool HttpRequest::parseHeaders(const String& headerSection) {
 
 bool HttpRequest::parseBody(const String& bodySection) {
     body = bodySection;
-    // ! If method typically has a body (POST, PUT, PATCH)
-    bool methodExpectsBody = (method == METHOD_POST || method == METHOD_PUT || method == METHOD_PATCH);
+    bool methodExpectsBody = isMethodWithBody(method);
 
     if (hasNonEmptyValue(headers, String("content-length"))) {
-        // ! Content-Length is present, validate body size matches
         if (body.size() != contentLength) {
             errorCode = HTTP_BAD_REQUEST;
             return Logger::error("Body length does not match Content-Length");
         }
     } else {
-        // ! No Content-Length header
         if (!body.empty()) {
-            // ! Body present without Content-Length
             if (methodExpectsBody) {
-                // ! For POST/PUT/PATCH, this should be 411 Length Required
                 errorCode = HTTP_LENGTH_REQUIRED;
                 return Logger::error("Content-Length required for request with body");
             } else {
-                // ! For GET/DELETE, body without Content-Length is invalid
                 errorCode = HTTP_BAD_REQUEST;
                 return Logger::error("Body present without Content-Length header");
             }
@@ -251,7 +249,6 @@ bool HttpRequest::parseBody(const String& bodySection) {
 }
 
 bool HttpRequest::validateHostHeader() {
-    // ! HTTP/1.1 requires Host header
     if (httpVersion == HTTP_VERSION_1_1) {
         MapString::const_iterator it = headers.find(HEADER_HOST);
         if (it == headers.end() || it->second.empty()) {

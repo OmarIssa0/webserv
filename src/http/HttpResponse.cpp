@@ -59,13 +59,11 @@ const String& HttpResponse::getBody() const {
     return body;
 }
 
-String HttpResponse::toString() {
+String HttpResponse::toString() const {
     String ss;
     ss += httpVersion + " " + typeToString<int>(statusCode) + " " + statusMessage + "\r\n";
-    if (headers.find(HEADER_DATE) == headers.end())
-        addHeader(HEADER_DATE, formatDateTime());
-    if (headers.find(HEADER_SERVER) == headers.end())
-        addHeader(HEADER_SERVER, "Webserv/1.0");
+    ss += String(HEADER_DATE) + ": " + formatDateTime() + "\r\n";
+    ss += String(HEADER_SERVER) + ": Webserv/1.0\r\n";
     for (MapString::const_iterator it = headers.begin(); it != headers.end(); ++it)
         ss += it->first + ": " + it->second + "\r\n";
     for (size_t i = 0; i < setCookies.size(); ++i)
@@ -73,6 +71,5 @@ String HttpResponse::toString() {
 
     ss += "\r\n";
     ss += body;
-    Logger::debug("response Sent (" + typeToString<int>(statusCode) + "): " + statusMessage);
     return ss;
 }

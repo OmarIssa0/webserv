@@ -70,30 +70,6 @@ bool SessionManager::isValid(const String& sessionId) const {
     return !it->second.isExpired(SESSION_TIMEOUT);
 }
 
-String SessionManager::regenerateId(const String& oldSessionId) {
-    SessionMap::iterator it = sessions.find(oldSessionId);
-    if (it == sessions.end())
-        return "";
-
-    String        newId = generateGUID();
-    SessionResult copy  = it->second;
-    copy.sessionId      = newId;
-    copy.updateTime();
-    sessions.erase(it);
-    sessions[newId] = copy;
-
-    Logger::info("[SESSION]: Regenerated " + oldSessionId.substr(0, 8) + "... -> " + newId.substr(0, 8) + "...");
-    return newId;
-}
-
 String SessionManager::buildSetCookieHeader(const String& sessionId) {
     return String(SESSION_COOKIE_NAME) + "=" + sessionId + "; Path=/; HttpOnly";
-}
-
-String SessionManager::buildExpiredCookieHeader() {
-    return String(SESSION_COOKIE_NAME) + "=; Path=/; HttpOnly; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0";
-}
-
-size_t SessionManager::getSessionCount() const {
-    return sessions.size();
 }

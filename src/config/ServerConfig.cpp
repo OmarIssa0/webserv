@@ -41,10 +41,10 @@ bool ServerConfig::setClientMaxBody(const VectorString& c) {
     if (!requireSingleValue(c, "client_max_body_size"))
         return false;
     //split M K G m k g from c[0]
-    size_t dummy;
     char   unit       = c[0][c[0].size() - 1];
     String numberPart = std::isdigit(unit) ? c[0] : c[0].substr(0, c[0].size() - 1);
-    if (!stringToType<size_t>(numberPart, dummy))
+    size_t parsed;
+    if (!stringToType<size_t>(numberPart, parsed))
         return Logger::error("invalid client_max_body_size: " + c[0]);
     clientMaxBodySize = convertMaxBodySize(c[0]);
     return true;
@@ -94,7 +94,7 @@ bool ServerConfig::setListen(const VectorString& l) {
     if (!splitByChar(l[0], interface, portStr, COLON))
         return Logger::error("invalid listen format");
     int port;
-    if (!stringToType<int>(portStr, port) || port < 1 || port > 65535)
+    if (!stringToType<int>(portStr, port) || port < 1 || port > MAX_PORT)
         return Logger::error("invalid port: " + portStr);
     if (interface == "localhost")
         interface = "127.0.0.1";

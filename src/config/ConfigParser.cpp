@@ -206,7 +206,7 @@ bool ConfigParser::validate() {
         return Logger::error("No server defined");
 
     if (_httpClientMaxBody == -1)
-        _httpClientMaxBody = 1024 * 1024; // default 1M
+        _httpClientMaxBody = DEFAULT_MAX_BODY_SIZE;
 
     for (size_t i = 0; i < _servers.size(); ++i) {
         ServerConfig& srv = _servers[i];

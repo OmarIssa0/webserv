@@ -19,7 +19,6 @@ HttpResponse ResponseBuilder::build(const RouteResult& resultRouter, CgiProcess*
         response.setStatus(resultRouter.getStatusCode(), getHttpStatusMessage(resultRouter.getStatusCode()));
         response.addHeader("Location", resultRouter.getRedirectUrl());
         response.addHeader("Content-Length", "0");
-        response.addHeader(HEADER_SERVER, "Webserv/1.0");
         return response;
     }
 
@@ -60,7 +59,7 @@ HttpResponse ResponseBuilder::build(const RouteResult& resultRouter, CgiProcess*
     RouteResult errResult = resultRouter;
     if (resultRouter.getStatusCode() == HTTP_OK) {
         String method = resultRouter.getRequest().getMethod();
-        if (handleType == NOT_FOUND && method != "GET" && method != "DELETE" && method != "HEAD") {
+        if (handleType == NOT_FOUND && isMethodWithBody(method)) {
             errResult.setCodeAndMessage(HTTP_METHOD_NOT_ALLOWED, getHttpStatusMessage(HTTP_METHOD_NOT_ALLOWED));
         } else {
             errResult.setCodeAndMessage(HTTP_INTERNAL_SERVER_ERROR, "Internal Server Error");
@@ -139,6 +138,8 @@ void ResponseBuilder::handleError(HttpResponse& response, const RouteResult& res
                 allow += ", ";
             allow += methods[i];
         }
+        // if (isKeyInVector(String(METHOD_GET), methods) && !isKeyInVector(String(METHOD_HEAD), methods))
+        //     allow += ", HEAD";
         response.addHeader("Allow", allow);
     }
 }

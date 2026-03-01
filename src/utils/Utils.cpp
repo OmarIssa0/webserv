@@ -12,7 +12,7 @@ void updateTime(time_t& t) {
     t = getCurrentTime();
 }
 
-time_t getDifferentTime(const time_t& start, const time_t& end) {
+time_t getElapsedSeconds(const time_t& start, const time_t& end) {
     return end - start;
 }
 
@@ -99,7 +99,7 @@ String toLowerWords(const String& str) {
     return result;
 }
 
-String cleanCharEnd(const String& v, char c) {
+String trimTrailingChar(const String& v, char c) {
     if (!v.empty() && v[v.size() - 1] == c)
         return v.substr(0, v.size() - 1);
     return v;
@@ -226,24 +226,12 @@ bool parseKeyValue(const String& line, String& key, VectorString& values) {
     key = trimQuotes(key);
     String v;
     while (ss >> v) {
-        values.push_back(trimQuotes(cleanCharEnd(v, ';')));
+        values.push_back(trimQuotes(trimTrailingChar(v, ';')));
     }
     return !values.empty();
 }
 
-String findValueStrInMap(const MapString& map, const String& key) {
-    MapString::const_iterator it = map.find(key);
-    if (it != map.end())
-        return it->second;
-    return String(EMPTY_STRING);
-}
 
-String findValueIntInMap(const MapIntString& map, int key) {
-    MapIntString::const_iterator it = map.find(key);
-    if (it != map.end())
-        return it->second;
-    return String(EMPTY_STRING);
-}
 
 // ============================================================================
 // File System Methods
@@ -472,7 +460,7 @@ String getUriRemainder(const String& uri, const String& locPath) {
 // HTTP/Network Helpers
 // ============================================================================
 
-bool checkAllowedMethods(const String& m) {
+bool isValidHttpMethod(const String& m) {
     // Optimization: Avoid constructing vector on every call
     static const char* allowed[] = {METHOD_GET, METHOD_POST, METHOD_DELETE, METHOD_PUT, METHOD_PATCH, METHOD_HEAD, METHOD_OPTIONS, NULL};
 
@@ -481,6 +469,10 @@ bool checkAllowedMethods(const String& m) {
             return true;
     }
     return false;
+}
+
+bool isMethodWithBody(const String& m) {
+    return m == METHOD_POST || m == METHOD_PUT || m == METHOD_PATCH;
 }
 
 bool setNonBlocking(int fd) {
@@ -769,36 +761,7 @@ bool parseMultipartFormData(const String& body, const String& boundary, String& 
     return !filename.empty();
 }
 
-bool getHeaderValue(const String& headers, const String& headerName, String& outValue) {
-    outValue.clear();
-    if (headerName.empty() || headers.empty())
-        return false;
 
-    String search = toLowerWords(headerName);
-    if (search.find(':') == String::npos)
-        search += ':';
-
-    String lowerHeaders = toLowerWords(headers);
-    size_t pos          = lowerHeaders.find(search);
-    if (pos == String::npos)
-        return false;
-
-    size_t valueStart = pos + search.size();
-    size_t endLine    = lowerHeaders.find("\r\n", valueStart);
-    if (endLine == String::npos)
-        endLine = lowerHeaders.size(); // handle last line without CRLF
-
-    // Extract from original headers to preserve case of value
-    outValue = trimSpaces(headers.substr(valueStart, endLine - valueStart));
-    return !outValue.empty();
-}
-
-bool isChunkedTransferEncoding(const String& headers) {
-    String val;
-    if (!getHeaderValue(headers, "transfer-encoding", val))
-        return false;
-    return toLowerWords(val).find("chunked") != String::npos;
-}
 
 bool decodeChunkedBody(const String& chunkedBody, String& decodedBody) {
     decodedBody.clear();
@@ -861,12 +824,7 @@ bool decodeChunkedBody(const String& chunkedBody, String& decodedBody) {
     return false; // should never reach here without a zero chunk
 }
 
-bool extractContentLength(ssize_t& contentLength, const String& headers) {
-    String val;
-    if (!getHeaderValue(headers, "content-length", val) || val.empty() || !stringToType<ssize_t>(val, contentLength))
-        return false;
-    return true;
-}
+
 
 String urlDecode(const String& input) {
     String result;

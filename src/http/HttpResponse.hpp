@@ -19,7 +19,7 @@ class HttpResponse {
     void   setBody(const String&);
     void   setHttpVersion(const String& version);
     const String& getBody() const;
-    String toString();
+    String toString() const;
     int    getStatusCode() const;
 
     const String& getStatusMessage() const;

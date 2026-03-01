@@ -43,6 +43,7 @@ class ServerManager {
     MapIntClientPtr            clients;
     MapIntServerPtr            clientToServer;
     MapIntVectorServerConfig   serverToConfigs;
+    MapIntServerPtr            serverFdMap;
     MimeTypes                  mimeTypes;
     ResponseBuilder            responseBuilder;
     SessionManager             sessionManager;
@@ -74,9 +75,9 @@ class ServerManager {
     void handleCgiWrite(int pipeFd);
     void cleanupClientCgi(Client* client);
     void removeCgiPipe(int pipeFd);
+    VectorInt getServerFds() const;
 
     Server*              createServerForListener(const String& listenerKey, const VectorServerConfig& configs, PollManager& pollMgr);
-    ListenerToConfigsMap getListerToConfigs();
     ListenerToConfigsMap mapListenersToConfigs(const VectorServerConfig& serversConfigs);
 };
 

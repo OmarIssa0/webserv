@@ -24,7 +24,7 @@ String MimeTypes::get(const String& path) const {
     String key, extention;
     if (!splitByChar(path, key, extention, '.', true))
         return default_mime_type;
-    const String& found = findValueStrInMap(mimeTypesMap, extention);
+    const String found = getValue(mimeTypesMap, extention, String(EMPTY_STRING));
     if (found.empty())
         return default_mime_type;
     return found;

@@ -87,7 +87,7 @@ void Client::removeReceivedData(size_t len) {
 }
 
 bool Client::isTimedOut(int timeout) const {
-    return getDifferentTime(lastActivity, getCurrentTime()) > timeout;
+    return getElapsedSeconds(lastActivity, getCurrentTime()) > timeout;
 }
 
 void Client::closeConnection() {
@@ -126,13 +126,14 @@ void Client::setHeadersParsed(bool parsed) {
     _headersParsed = parsed;
 }
 
+void Client::resetForNextRequest() {
+    _headersParsed = false;
+    _request.clear();
+}
+
 HttpRequest& Client::getRequest() {
     return _request;
 }
-// "http://localhost:8080/cgi-bin/env.py/loay?omar=my_bitch
-// scriptNmae: /cgi-bin/env.py
-//query omar=my_bitch
-//path_info /loay
 
 void Client::setKeepAlive(bool keepAlive) {
     _keepAlive = keepAlive;
@@ -143,4 +144,20 @@ bool Client::isKeepAlive() const {
 
 void Client::refreshActivity() {
     updateTime(lastActivity);
+}
+
+bool Client::isChunkedEncoding() const {
+    return toLowerWords(_request.getHeader("transfer-encoding")).find("chunked") != String::npos;
+}
+
+const String& Client::getMethod() const {
+    return _request.getMethod();
+}
+
+size_t Client::getContentLength() const {
+    return _request.getContentLength();
+}
+
+int Client::getErrorCode() const {
+    return _request.getErrorCode();
 }

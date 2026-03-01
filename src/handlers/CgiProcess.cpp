@@ -119,10 +119,6 @@ bool CgiProcess::writeBody(int fd) {
     return isWriteDone();
 }
 
-void CgiProcess::appendOutput(const char* data, size_t len) {
-    _output.append(data, len);
-}
-
 bool CgiProcess::handleRead() {
     char    buf[BUFFER_SIZE];
     bool    gotData = false;
@@ -159,10 +155,12 @@ bool CgiProcess::finish() {
         ret = waitpid(_pid, &status, WNOHANG);
         if (ret == 0) {
             kill(_pid, SIGKILL);
-            waitpid(_pid, &status, WNOHANG);
+            ret = waitpid(_pid, &status, WNOHANG);
         }
     }
     _active = false;
+    if (ret <= 0)
+        return false;
     return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
@@ -182,8 +180,4 @@ void CgiProcess::cleanup() {
         _readFd = INVALID_FD;
     }
     reset();
-}
-
-void CgiProcess::resetStartTime() {
-    _startTime = getCurrentTime();
 }

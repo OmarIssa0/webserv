@@ -185,7 +185,7 @@ bool LocationConfig::setAllowedMethods(const VectorString& v) {
 
     for (size_t i = 0; i < v.size(); ++i) {
         String m = toUpperWords(v[i]);
-        if (!checkAllowedMethods(m))
+        if (!isValidHttpMethod(m))
             return Logger::error("invalid method: " + m);
         for (size_t j = 0; j < allowedMethods.size(); ++j) {
             if (allowedMethods[j] == m)

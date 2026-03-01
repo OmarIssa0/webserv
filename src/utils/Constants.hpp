@@ -30,9 +30,9 @@
 #define HEADER_CONTENT_DISPOSITION "Content-Disposition"
 #define HEADER_HOST "host"
 #define HEADER_COOKIE "cookie"
-#define HEADER_SET_COOKIE "set-cookie"
+#define HEADER_SET_COOKIE "Set-Cookie"
 #define HEADER_CONNECTION "Connection"
-#define HEADER_DATE "date"
+#define HEADER_DATE "Date"
 #define HEADER_SERVER "Server"
 
 // ! HTTP METHODS
@@ -74,12 +74,15 @@
 // ! TIMEOUTS
 #define CLIENT_TIMEOUT 160
 #define CGI_TIMEOUT 160
+#define POLL_TIMEOUT_MS 100
 #define SECONDS_PER_DAY 86400
 #define SECONDS_PER_HOUR 3600
 #define SECONDS_PER_MIN 60
 
 // ! DEFAULTS
 #define DEFAULT_PORT 80
+#define MAX_PORT 65535
+#define DEFAULT_MAX_BODY_SIZE (1024 * 1024)
 #define DIR_PERMISSIONS 0755
 #define INVALID_FD -1
 

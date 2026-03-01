@@ -41,11 +41,9 @@ class CgiProcess {
     bool isWriteDone() const;
     void setWriteDone(bool done);
     bool writeBody(int fd);
-    void appendOutput(const char* data, size_t len);
     bool handleRead();
     bool finish();
     void cleanup();
-    void resetStartTime();
 };
 
 #endif

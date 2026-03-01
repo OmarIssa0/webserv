@@ -76,6 +76,7 @@ bool ServerManager::initializeServers(const VectorServerConfig& serversConfigs) 
             continue;
         servers.push_back(server);
         serverToConfigs[server->getFd()] = it->second;
+        serverFdMap[server->getFd()] = server;
     }
     return !servers.empty();
 }
@@ -85,9 +86,9 @@ bool ServerManager::run() {
         return false;
     time_t lastSessionCleanup = getCurrentTime();
     while (g_running) {
-        int eventCount = pollManager.pollConnections(10);
+        int eventCount = pollManager.pollConnections(POLL_TIMEOUT_MS);
         checkTimeouts(CLIENT_TIMEOUT);
-        if (getDifferentTime(lastSessionCleanup, getCurrentTime()) > SESSION_CLEANUP_INTERVAL) {
+        if (getElapsedSeconds(lastSessionCleanup, getCurrentTime()) > SESSION_CLEANUP_INTERVAL) {
             sessionManager.cleanupExpiredSessions(SESSION_TIMEOUT);
             lastSessionCleanup = getCurrentTime();
         }
@@ -207,11 +208,10 @@ void ServerManager::checkTimeouts(int timeout) {
     std::vector<int> toClose;
     for (MapIntClientPtr::iterator it = clients.begin(); it != clients.end(); ++it) {
         if (it->second->getCgi().isActive()) {
-            if (getDifferentTime(it->second->getCgi().getStartTime(), getCurrentTime()) > CGI_TIMEOUT) {
+            if (getElapsedSeconds(it->second->getCgi().getStartTime(), getCurrentTime()) > CGI_TIMEOUT) {
                 cleanupClientCgi(it->second);
                 it->second->setSendData(responseBuilder.buildError(HTTP_GATEWAY_TIMEOUT, "CGI Timeout").toString());
-                it->second->setHeadersParsed(false);
-                it->second->getRequest().clear();
+                it->second->resetForNextRequest();
                 pollManager.addFd(it->first, POLLIN | POLLOUT);
             }
         } else if (it->second->isTimedOut(timeout)) {
@@ -233,8 +233,8 @@ void ServerManager::sendErrorResponse(Client* client, int statusCode, const Stri
         client->removeReceivedData(bytesToRemove);
     else
         client->clearStoreReceiveData();
-    client->setHeadersParsed(false);
-    client->getRequest().clear();
+    client->resetForNextRequest();
+    clientRoutes.erase(client->getFd());
     pollManager.addFd(client->getFd(), POLLIN | POLLOUT);
 }
 
@@ -280,8 +280,7 @@ void ServerManager::finalizeResponse(Client* client, const HttpResponse& respons
         client->removeReceivedData(bodyLen);
     else
         client->clearStoreReceiveData();
-    client->setHeadersParsed(false);
-    client->getRequest().clear();
+    client->resetForNextRequest();
     clientRoutes.erase(client->getFd());
     pollManager.addFd(client->getFd(), POLLIN | POLLOUT);
 }
@@ -309,7 +308,7 @@ bool ServerManager::parseAndRouteHeaders(Client* client, Server* server) {
         return false;
 
     if (!client->getRequest().parseHeaders(buffer.substr(0, headerEnd))) {
-        sendErrorResponse(client, client->getRequest().getErrorCode(), "Bad Request", true, headerEnd + headerEndLen);
+        sendErrorResponse(client, client->getErrorCode(), "Bad Request", true, headerEnd + headerEndLen);
         return false;
     }
     client->getRequest().setPort(server->getPort());
@@ -333,21 +332,20 @@ bool ServerManager::parseAndRouteHeaders(Client* client, Server* server) {
     if (res.getStatusCode() >= 400) {
         sendErrorResponse(client, res.getStatusCode(),
                           res.getErrorMessage().empty() ? getHttpStatusMessage(res.getStatusCode()) : res.getErrorMessage(), true, 0);
-        clientRoutes.erase(client->getFd());
         return false;
     }
 
     bool hasContentLength = !client->getRequest().getHeader("content-length").empty();
-    bool isChunked        = (toLowerWords(client->getRequest().getHeader("transfer-encoding")).find("chunked") != String::npos);
+    bool isChunked        = client->isChunkedEncoding();
 
     if (!validateRequestBody(client, res, hasContentLength, isChunked))
         return false;
 
     if (res.getHandlerType() == CGI) {
-        ssize_t cl = client->getRequest().getContentLength();
+        ssize_t cl = client->getContentLength();
         if (cl <= 0 && !isChunked)
             client->getCgi().setWriteDone(true);
-        responseBuilder.build(res, &client->getCgi(), VectorInt());
+        responseBuilder.build(res, &client->getCgi(), getServerFds());
         if (client->getCgi().isActive())
             registerCgiPipes(client);
     }
@@ -357,58 +355,51 @@ bool ServerManager::parseAndRouteHeaders(Client* client, Server* server) {
 bool ServerManager::validateRequestBody(Client* client, const RouteResult& res, bool hasContentLength, bool isChunked) {
     if (hasContentLength && isChunked) {
         sendErrorResponse(client, HTTP_BAD_REQUEST, getHttpStatusMessage(HTTP_BAD_REQUEST), true, 0);
-        clientRoutes.erase(client->getFd());
         return false;
     }
 
     ssize_t maxBody = getMaxBodySize(res);
-    String  method  = client->getRequest().getMethod();
+    String  method  = client->getMethod();
 
     if ((method == "GET" || method == "DELETE" || method == "TRACE") && (hasContentLength || isChunked)) {
         sendErrorResponse(client, HTTP_BAD_REQUEST, getHttpStatusMessage(HTTP_BAD_REQUEST), true, 0);
-        clientRoutes.erase(client->getFd());
         return false;
     }
 
-    if ((method == "POST" || method == "PUT" || method == "PATCH") && !hasContentLength && !isChunked) {
+    if (isMethodWithBody(method) && !hasContentLength && !isChunked) {
         sendErrorResponse(client, HTTP_LENGTH_REQUIRED, getHttpStatusMessage(HTTP_LENGTH_REQUIRED), true, 0);
-        clientRoutes.erase(client->getFd());
         return false;
     }
 
     if (hasContentLength) {
-        size_t cl = client->getRequest().getContentLength();
+        size_t cl = client->getContentLength();
         if (maxBody >= 0 && (ssize_t)cl > maxBody) {
             sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
-            clientRoutes.erase(client->getFd());
             return false;
         }
     }
 
     if (maxBody >= 0 && client->getStoreReceiveData().size() > (size_t)maxBody) {
         sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
-        clientRoutes.erase(client->getFd());
         return false;
     }
     return true;
 }
 
 void ServerManager::handleCgiBodyStreaming(Client* client) {
-    bool        isChunked = (toLowerWords(client->getRequest().getHeader("transfer-encoding")).find("chunked") != String::npos);
+    bool        isChunked = client->isChunkedEncoding();
     RouteResult boundRes  = getValue(clientRoutes, client->getFd(), RouteResult());
     ssize_t     maxBody   = getMaxBodySize(boundRes);
 
     if (isChunked) {
         if (maxBody >= 0 && client->getStoreReceiveData().size() > (size_t)maxBody) {
             sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
-            clientRoutes.erase(client->getFd());
             return;
         }
         String decoded;
         if (decodeChunkedBody(client->getStoreReceiveData(), decoded)) {
             if (maxBody >= 0 && decoded.size() > (size_t)maxBody) {
                 sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
-                clientRoutes.erase(client->getFd());
                 return;
             }
             client->getCgi().appendBuffer(decoded);
@@ -417,11 +408,10 @@ void ServerManager::handleCgiBodyStreaming(Client* client) {
             pollManager.addFd(client->getCgi().getWriteFd(), POLLOUT);
         }
     } else {
-        size_t cl              = client->getRequest().getContentLength();
+        size_t cl              = client->getContentLength();
         size_t currentBodySize = client->getRequest().getBody().size();
         if (cl < currentBodySize) {
             sendErrorResponse(client, HTTP_BAD_REQUEST, getHttpStatusMessage(HTTP_BAD_REQUEST), true, 0);
-            clientRoutes.erase(client->getFd());
             return;
         }
         size_t toWrite = std::min(client->getStoreReceiveData().size(), cl - currentBodySize);
@@ -429,7 +419,6 @@ void ServerManager::handleCgiBodyStreaming(Client* client) {
             String part = client->getStoreReceiveData().substr(0, toWrite);
             if (maxBody >= 0 && (ssize_t)(currentBodySize + part.size()) > maxBody) {
                 sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
-                clientRoutes.erase(client->getFd());
                 return;
             }
             client->getCgi().appendBuffer(part);
@@ -444,8 +433,8 @@ void ServerManager::handleCgiBodyStreaming(Client* client) {
 }
 
 bool ServerManager::handleRegularBody(Client* client) {
-    bool    isChunked = (toLowerWords(client->getRequest().getHeader("transfer-encoding")).find("chunked") != String::npos);
-    ssize_t cl        = client->getRequest().getContentLength();
+    bool    isChunked = client->isChunkedEncoding();
+    ssize_t cl        = client->getContentLength();
 
     if (!isChunked && client->getStoreReceiveData().size() >= (size_t)cl) {
         if (cl > 0)
@@ -453,16 +442,15 @@ bool ServerManager::handleRegularBody(Client* client) {
         RouteResult res = getValue(clientRoutes, client->getFd(), RouteResult());
 
         if (res.getHandlerType() == CGI) {
-            bool isChunked2 = (toLowerWords(client->getRequest().getHeader("transfer-encoding")).find("chunked") != String::npos);
-            if (cl <= 0 && !isChunked2)
+            if (cl <= 0 && !isChunked)
                 client->getCgi().setWriteDone(true);
-            responseBuilder.build(res, &client->getCgi(), VectorInt());
+            responseBuilder.build(res, &client->getCgi(), getServerFds());
             if (client->getCgi().isActive()) {
                 registerCgiPipes(client);
                 return true;
             }
         } else {
-            HttpResponse response = responseBuilder.build(res, &client->getCgi(), VectorInt());
+            HttpResponse response = responseBuilder.build(res, &client->getCgi(), getServerFds());
             finalizeResponse(client, response, cl);
             return true;
         }
@@ -474,7 +462,7 @@ bool ServerManager::handleRegularBody(Client* client) {
 
             if (maxBody >= 0 && decoded.size() > (size_t)maxBody) {
                 sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
-                clientRoutes.erase(client->getFd());
+
                 return false;
             }
 
@@ -483,13 +471,13 @@ bool ServerManager::handleRegularBody(Client* client) {
             if (res.getHandlerType() == CGI) {
                 client->getCgi().appendBuffer(decoded);
                 client->getCgi().setWriteDone(true);
-                responseBuilder.build(res, &client->getCgi(), VectorInt());
+                responseBuilder.build(res, &client->getCgi(), getServerFds());
                 if (client->getCgi().isActive()) {
                     registerCgiPipes(client);
                     return true;
                 }
             } else {
-                HttpResponse response = responseBuilder.build(res, &client->getCgi(), VectorInt());
+                HttpResponse response = responseBuilder.build(res, &client->getCgi(), getServerFds());
                 finalizeResponse(client, response, 0);
                 return true;
             }
@@ -560,11 +548,10 @@ void ServerManager::handleCgiRead(int pipeFd) {
                 close(client->getCgi().getReadFd());
                 client->getCgi().setReadFd(-1);
             }
-            client->setSendData(responseBuilder.buildCgiResponse(client->getCgi()).toString());
-            client->setHeadersParsed(false);
-            client->getRequest().clear();
-            clientRoutes.erase(client->getFd());
             client->getCgi().finish();
+            client->setSendData(responseBuilder.buildCgiResponse(client->getCgi()).toString());
+            client->resetForNextRequest();
+            clientRoutes.erase(client->getFd());
             pollManager.addFd(client->getFd(), POLLIN | POLLOUT);
         }
     }
@@ -579,9 +566,9 @@ void ServerManager::cleanupClientCgi(Client* client) {
 }
 
 Server* ServerManager::findServerByFd(int serverFd) const {
-    for (size_t i = 0; i < servers.size(); i++)
-        if (servers[i]->getFd() == serverFd)
-            return servers[i];
+    MapIntServerPtr::const_iterator it = serverFdMap.find(serverFd);
+    if (it != serverFdMap.end())
+        return it->second;
     return NULL;
 }
 
@@ -606,4 +593,11 @@ size_t ServerManager::getServerCount() const {
 }
 size_t ServerManager::getClientCount() const {
     return clients.size();
+}
+
+VectorInt ServerManager::getServerFds() const {
+    VectorInt fds;
+    for (size_t i = 0; i < servers.size(); i++)
+        fds.push_back(servers[i]->getFd());
+    return fds;
 }

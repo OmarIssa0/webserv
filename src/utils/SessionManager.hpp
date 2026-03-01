@@ -20,10 +20,7 @@ class SessionManager
     void     cleanupExpiredSessions(int timeoutSeconds);
 
     bool isValid(const String& sessionId) const;
-    String regenerateId(const String& oldSessionId);
     static String buildSetCookieHeader(const String& sessionId);
-    static String buildExpiredCookieHeader();
-    size_t getSessionCount() const;
 
    private:
     SessionMap sessions;

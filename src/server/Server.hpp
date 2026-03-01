@@ -39,7 +39,6 @@ class Server {
     // getters
     int          getFd() const;
     int          getPort() const;
-    bool         isRunning() const;
     const ServerConfig& getConfig() const;
 };
 

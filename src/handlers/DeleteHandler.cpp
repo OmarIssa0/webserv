@@ -8,7 +8,7 @@ DeleteHandler::~DeleteHandler() {}
 bool DeleteHandler::handle(const RouteResult& resultRouter, HttpResponse& response) const {
     String path = resultRouter.getPathRootUri();
 
-    if (path.find("..") != String::npos)
+    if (path.find("/../") != String::npos || (path.size() >= 3 && path.substr(path.size() - 3) == "/.."))
         return false;
 
     if (getFileType(path) != SINGLEFILE)
@@ -21,7 +21,6 @@ bool DeleteHandler::handle(const RouteResult& resultRouter, HttpResponse& respon
     response.addHeader(HEADER_CONTENT_TYPE, "application/json");
     String body = "{\"message\":\"File deleted successfully\"}";
     response.addHeader(HEADER_CONTENT_LENGTH, typeToString<size_t>(body.size()));
-    response.addHeader(HEADER_SERVER, "Webserv/1.0");
     if (resultRouter.getRequest().getMethod() != "HEAD")
         response.setBody(body);
     return true;

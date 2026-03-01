@@ -104,9 +104,6 @@ int Server::getFd() const {
 int Server::getPort() const {
     return config.getPort(listenIndex);
 }
-bool Server::isRunning() const {
-    return running;
-}
 
 const ServerConfig& Server::getConfig() const {
     return config;

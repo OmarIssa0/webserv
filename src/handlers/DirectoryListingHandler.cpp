@@ -104,6 +104,5 @@ bool DirectoryListingHandler::handle(const RouteResult& resultRouter, HttpRespon
     response.setResponseHeaders("text/html", html.size());
     if (resultRouter.getRequest().getMethod() != "HEAD")
         response.setBody(html);
-    response.addHeader(HEADER_SERVER, "Webserv/1.0");
     return true;
 }

@@ -22,6 +22,8 @@ class HttpRequest {
     MapString cookies;       // Cookies from Cookie header
     int       errorCode;     // HTTP error code (0 if no error)
 
+    bool parseRequestLine(const String& requestLine);
+
    public:
     HttpRequest();
     HttpRequest(const HttpRequest& other);

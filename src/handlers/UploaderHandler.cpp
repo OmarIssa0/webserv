@@ -29,12 +29,15 @@ bool UploaderHandler::handle(const String& uploadDir, const String& filename, co
         return false;
 
     out.write(content.c_str(), content.size());
+    if (!out.good()) {
+        out.close();
+        return Logger::error("Failed to write upload content to: " + fullPath);
+    }
     out.close();
 
     String successMsg = "File uploaded successfully: " + safeName;
     response.setStatus(HTTP_CREATED, "Created");
     response.setResponseHeaders("text/plain", successMsg.size());
     response.setBody(successMsg);
-    response.addHeader(HEADER_SERVER, "Webserv/1.0");
     return true;
 }

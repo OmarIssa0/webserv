@@ -164,7 +164,6 @@ bool CgiHandler::parseOutput(const String& raw, HttpResponse& response) {
     }
     if (!statusSet)
         response.setStatus(HTTP_OK, "OK");
-    response.addHeader(HEADER_SERVER, "Webserv/1.0");
     response.setBody(bodyPart);
     return true;
 }
