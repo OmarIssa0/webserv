@@ -366,11 +366,16 @@ bool ServerManager::parseAndRouteHeaders(Client* client, Server* server) {
 
     if (res.getHandlerType() == CGI) {
         ssize_t cl = client->getContentLength();
+        Logger::error("DEBUG CGI: handler=CGI, cl=" + typeToString<ssize_t>(cl) + " isChunked=" + typeToString<int>(isChunked) + " bufSize=" + typeToString<size_t>(client->getStoreReceiveData().size()));
         if (cl <= 0 && !isChunked)
             client->getCgi().setWriteDone(true);
         responseBuilder.build(res, &client->getCgi(), getServerFds());
-        if (client->getCgi().isActive())
+        if (client->getCgi().isActive()) {
+            Logger::error("DEBUG CGI: pipes registered, writeFd=" + typeToString<int>(client->getCgi().getWriteFd()) + " readFd=" + typeToString<int>(client->getCgi().getReadFd()));
             registerCgiPipes(client);
+        } else {
+            Logger::error("DEBUG CGI: CGI NOT ACTIVE after build!");
+        }
     }
     return true;
 }
@@ -414,6 +419,8 @@ void ServerManager::handleCgiBodyStreaming(Client* client) {
     RouteResult boundRes  = getValue(clientRoutes, client->getFd(), RouteResult());
     ssize_t     maxBody   = getMaxBodySize(boundRes);
 
+    Logger::error("DEBUG handleCgiBodyStreaming: isChunked=" + typeToString<int>(isChunked) + " bufSize=" + typeToString<size_t>(client->getStoreReceiveData().size()) + " totalRecv=" + typeToString<size_t>(client->getCgi().getTotalReceived()) + " cl=" + typeToString<size_t>(client->getContentLength()));
+
     if (isChunked) {
         if (maxBody >= 0 && client->getStoreReceiveData().size() > (size_t)maxBody) {
             sendErrorResponse(client, HTTP_PAYLOAD_TOO_LARGE, getHttpStatusMessage(HTTP_PAYLOAD_TOO_LARGE), true, 0);
@@ -449,8 +456,15 @@ void ServerManager::handleCgiBodyStreaming(Client* client) {
             if (client->getCgi().getWriteFd() != -1)
                 pollManager.addFd(client->getCgi().getWriteFd(), POLLOUT);
         }
-        if (client->getCgi().getTotalReceived() >= cl)
+        if (client->getCgi().getTotalReceived() >= cl) {
+            Logger::error("DEBUG body streaming DONE: totalRecv=" + typeToString<size_t>(client->getCgi().getTotalReceived()));
             client->getCgi().setWriteDone(true);
+        }
+        else {
+            Logger::error("DEBUG body streaming NEED MORE: totalRecv=" + typeToString<size_t>(client->getCgi().getTotalReceived()) + " cl=" + typeToString<size_t>(cl));
+            // Still need more body data from client — keep listening on client fd
+            pollManager.addFd(client->getFd(), POLLIN);
+        }
     }
 }
 

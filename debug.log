@@ -1,34 +1,268 @@
-DEBUG handleClientRead: fd=5 keepAlive=0 before receiveData
-DEBUG handleClientRead: fd=5 received=96 keepAlive=0
-DEBUG parseAndRouteHeaders: setKeepAlive=1 for fd=5
-DEBUG pre-build keepAlive=1 fd=5
-DEBUG post-build keepAlive=1 fd=5 cgiActive=1
-DEBUG post-register keepAlive=1 fd=5
-DEBUG processRequest: after parse keepAlive=1 cgiActive=1 fd=5
-DEBUG processRequest: after cgiBodyStreaming keepAlive=1 fd=5
-DEBUG handleCgiRead: CGI done for fd=5 keepAlive=1
-DEBUG handleClientWrite: keepAlive fd=5
-DEBUG handleClientRead: fd=5 keepAlive=1 before receiveData
-DEBUG handleClientRead: fd=5 received=77 keepAlive=1
-DEBUG parseAndRouteHeaders: setKeepAlive=1 for fd=5
-DEBUG processRequest: after parse keepAlive=1 cgiActive=0 fd=5
-DEBUG handleClientWrite: keepAlive fd=5
-DEBUG handleClientRead: fd=5 keepAlive=1 before receiveData
-DEBUG handleClientRead: fd=5 received=0, closing (EOF)
-DEBUG handleClientRead: fd=5 keepAlive=0 before receiveData
-DEBUG handleClientRead: fd=5 received=96 keepAlive=0
-DEBUG parseAndRouteHeaders: setKeepAlive=1 for fd=5
-DEBUG pre-build keepAlive=1 fd=5
-DEBUG post-build keepAlive=1 fd=5 cgiActive=1
-DEBUG post-register keepAlive=1 fd=5
-DEBUG processRequest: after parse keepAlive=1 cgiActive=1 fd=5
-DEBUG processRequest: after cgiBodyStreaming keepAlive=1 fd=5
-DEBUG handleCgiRead: CGI done for fd=5 keepAlive=1
-DEBUG handleClientWrite: keepAlive fd=5
-DEBUG handleClientRead: fd=5 keepAlive=1 before receiveData
-DEBUG handleClientRead: fd=5 received=77 keepAlive=1
-DEBUG parseAndRouteHeaders: setKeepAlive=1 for fd=5
-DEBUG processRequest: after parse keepAlive=1 cgiActive=0 fd=5
-DEBUG handleClientWrite: keepAlive fd=5
-DEBUG handleClientRead: fd=5 keepAlive=1 before receiveData
-DEBUG handleClientRead: fd=5 received=0, closing (EOF)
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=100000000 isChunked=0 bufSize=0[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=9 readFd=10[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=0 bufSize=0 totalRecv=0 cl=100000000[0m
+[31m[ERROR]: DEBUG body streaming NEED MORE: totalRecv=0 cl=100000000[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=0 bufSize=100000000 totalRecv=0 cl=100000000[0m
+[31m[ERROR]: DEBUG body streaming DONE: totalRecv=100000000[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=0[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=11 readFd=12[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=0 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=69628[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=14 readFd=15[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=69628 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=2163209 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=1540468[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=16 readFd=17[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=1540468 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=2986709 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4064221 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=5539137 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4293594[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=19 readFd=20[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4293594 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=7210673 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=9177278 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=11934554 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=9111721 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4161853[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=22 readFd=26[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4161853 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=13540584 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=16129888 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=20616096 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=19009488 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=12454868 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4359200[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=31 readFd=32[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4359200 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=23434507 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=22222118 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=39200092 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=24614585 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=21369894 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=14355869 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4448754[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=34 readFd=35[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4448754 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=28900328 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=28842168 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=44676173 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=30680819 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=30138941 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=20257377 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=13081665 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4232200[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=38 readFd=39[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4232200 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=41527191 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=35430618 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=50765111 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=36745867 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=39105051 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=26351291 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=22094876 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=9966541 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4359199[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=42 readFd=44[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4359199 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=47622584 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=41859027 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=56866335 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=42838232 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=49360653 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=31556348 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=15608900 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=11702599 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4357468[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=46 readFd=47[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4357468 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=53719861 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=48278986 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=62963834 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=48934565 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=57357538 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=32445385 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=41854950 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=21570703 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=19141182 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=12910937 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=4555646[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=48 readFd=49[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4555646 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=59816198 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=54867022 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=69059029 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=55030453 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=66830261 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=51298536 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=27732418 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=26716520 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=21831048 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=12747526 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=65906945 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=61721302 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=75145327 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=61117660 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=72369395 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=56768919 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=34451669 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=34377137 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=30448904 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=20816377 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=72032329 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=70177509 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=81249312 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=67227669 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=78468978 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=38515892 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=40744663 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=42055553 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=39950230 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=28978063 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=78170356 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=77121916 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=87348037 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=73319511 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=84585226 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=62831588 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=47200438 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=49885063 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=49004202 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=38118486 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=84271189 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=84532441 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=93444376 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=79453114 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=90695287 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=44608048 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=53560075 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=58868874 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=58472374 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=46946870 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=90367428 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=92056065 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=99538904 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=85549957 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=96791506 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=50704313 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=68993477 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=59918441 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=68932019 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=63945899 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=56079735 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=96525320 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=91673444 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=66403995 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=78432946 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=65506042 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=97803354 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=56833410 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=75090951 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=73058771 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=88265579 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=70077758 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=75913308 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=63011014 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=81249011 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=80038814 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=93733304 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=81381427 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=74143315 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=86954634 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=99737364 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=76204197 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=79942838 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=87384610 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=93837683 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=87542819 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=90560035 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=93537292 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=82300535 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=96065499 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=93480763 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=98819588 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=88396870 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=90855067 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=92002215 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=92985336 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=94066688 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=95279793 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=96313987 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=97606925 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=98889114 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=99839687 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=100024421 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=262208[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=12 readFd=14[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=262208 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=2720406[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=15 readFd=16[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=2720406 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4555823 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=4654190 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=1079410[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=17 readFd=19[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=1079410 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=8422927 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=9911274 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=7112388 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=8650082[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=20 readFd=22[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=8650082 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=13016166[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=26 readFd=31[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=13016166 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=7966597[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=32 readFd=34[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=7966597 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=13897009 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=15404405 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=5834128[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=35 readFd=38[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=5834128 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=5998007[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=39 readFd=42[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=5998007 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=18288944 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=16846862 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=25991362 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=15731246 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=11734890[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=44 readFd=45[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=11734890 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=15865553[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=46 readFd=47[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=15865553 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=24356623 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=26224863 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=36680438 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=23799069 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=19959629 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=17731807 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=29272379 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=11901781 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=21336582 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=30448897 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=35594727 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=42535514 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=32222892 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=25991286 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=23862807 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=34880386 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=11731857 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG CGI: handler=CGI, cl=0 isChunked=1 bufSize=5932456[0m
+[31m[ERROR]: DEBUG CGI: pipes registered, writeFd=48 readFd=49[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=5932456 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=41039646 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=46316514 totalRecv=0 cl=0[0m
+[31m[ERROR]: DEBUG handleCgiBodyStreaming: isChunked=1 bufSize=40976876 totalRecv=0 cl=0[0m

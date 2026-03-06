@@ -1,5 +1,6 @@
 #include "CgiProcess.hpp"
 #include "../utils/Utils.hpp"
+#include <errno.h>
 
 CgiProcess::CgiProcess()
     : _pid(-1), _writeFd(-1), _readFd(-1), _writeOffset(0), _writeDone(true), _startTime(0), _active(false), _totalBytesReceived(0) {}
@@ -106,11 +107,17 @@ bool CgiProcess::writeBody(int fd) {
     while (_writeOffset < _writeBuffer.size()) {
         const char* data      = _writeBuffer.c_str() + _writeOffset;
         size_t      remaining = _writeBuffer.size() - _writeOffset;
-        ssize_t w = write(fd, data, remaining);
+        size_t      chunkSize = remaining < BUFFER_SIZE ? remaining : BUFFER_SIZE;
+        ssize_t     w         = write(fd, data, chunkSize);
         if (w > 0) {
-            _writeOffset += w;
+            _writeOffset += (size_t)w;
             madeProgress = true;
+        } else if (w < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            // Pipe buffer full, retry on next POLLOUT event
+            break;
         } else {
+            // Real error or EOF, stop writing
+            _writeDone = true;
             break;
         }
     }
